@@ -53,14 +53,13 @@ export class RouteListFactory implements ComponentFactory<any> {
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
       return {
-        'Name': new TextFactory({
+        'Name': new LinkFactory({
           value: metadata.name,
           // TODO manage internal links centrally
-          // ref: `/knative/routes/${metadata.name}`,
+          ref: `/knative/routes/${metadata.name}`,
           options: {
             status: ready.status(),
-            // TODO the plugin host is unable to unmarshal this field 
-            // statusDetail: ready.toComponent(),
+            statusDetail: ready.toComponent(),
           },
         }).toComponent(),
         'URL': status.url

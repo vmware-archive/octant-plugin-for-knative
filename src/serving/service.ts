@@ -67,8 +67,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
           ref: `/knative/services/${metadata.name}`,
           options: {
             status: ready.status(),
-            // TODO the plugin host is unable to unmarshal this field 
-            // statusDetail: ready.toComponent(),
+            statusDetail: ready.toComponent(),
           },
         }).toComponent(),
         'URL': status.url

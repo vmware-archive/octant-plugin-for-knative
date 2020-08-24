@@ -8,6 +8,7 @@ import { ConditionSummaryFactory, Condition } from "./conditions";
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { LinkFactory } from "../octant/link";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
@@ -53,14 +54,13 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
       return {
-        'Name': new TextFactory({
+        'Name': new LinkFactory({
           value: metadata.name,
           // TODO manage internal links centrally
-          // ref: `/knative/configurations/${metadata.name}`,
+          ref: `/knative/configurations/${metadata.name}`,
           options: {
             status: ready.status(),
-            // TODO the plugin host is unable to unmarshal this field 
-            // statusDetail: ready.toComponent(),
+            statusDetail: ready.toComponent(),
           },
         }).toComponent(),
         'Latest Created': status.latestCreatedRevisionName
