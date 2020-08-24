@@ -29,6 +29,7 @@ import { Configuration, ConfigurationListFactory } from "./serving/configuration
 import { Revision } from "./serving/revision";
 import { RouteListFactory, Route } from "./serving/route";
 import { Service, ServiceListFactory, ServiceSummaryFactory } from "./serving/service";
+import { ButtonGroupFactory } from "./octant/button-group";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -156,7 +157,25 @@ export default class MyPlugin implements octant.Plugin {
       new TextFactory({ value: name }),
     ];
     const body = this.serviceDetail(name);
-    return h.createContentResponse(title, body);
+    const buttonGroup = new ButtonGroupFactory({
+      buttons: [
+        {
+          name: "Delete",
+          payload: {
+            action: "action.octant.dev/deleteObject",
+            apiVersion: "serving.knative.dev/v1",
+            kind:       "Service",
+            namespace:  this.namespace,
+            name:       name,
+          },
+          confirmation: {
+            title: "Delete Service",
+            body: `Are you sure you want to delete *Service* **${name}**? This action is permanent and cannot be recovered.`,
+          },
+        },
+      ],
+    });
+    return h.createContentResponse(title, body, buttonGroup);
   }
 
   configurationListingHandler(request: octant.ContentRequest): octant.ContentResponse {

@@ -3,15 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ConditionSummaryFactory, Condition } from "./conditions";
-
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
+
+import { ConditionSummaryFactory, Condition } from "./conditions";
+import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
 export interface Configuration {
@@ -54,6 +56,11 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
       return {
+        '_action': new GridActionsFactory({
+          actions: [
+            deleteGridAction(configuration),
+          ],
+        }).toComponent(),
         'Name': new LinkFactory({
           value: metadata.name,
           // TODO manage internal links centrally

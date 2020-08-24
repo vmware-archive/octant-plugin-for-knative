@@ -8,6 +8,7 @@ import { ConditionSummaryFactory, Condition, ConditionStatus } from "./condition
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
@@ -16,6 +17,7 @@ import { FlexLayoutFactory } from "../octant/flexlayout";
 import { SummaryFactory } from "../octant/summary";
 
 import { RevisionListFactory, Revision } from "./revision";
+import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
 export interface Service {
@@ -61,6 +63,11 @@ export class ServiceListFactory implements ComponentFactory<any> {
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
       return {
+        '_action': new GridActionsFactory({
+          actions: [
+            deleteGridAction(service),
+          ],
+        }).toComponent(),
         'Name': new LinkFactory({
           value: metadata.name,
           // TODO manage internal links centrally
