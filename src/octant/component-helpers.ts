@@ -43,7 +43,7 @@ export const createContentResponse = (
     content: {
       title: title.map((t) => t.toComponent()),
       viewComponents: bodyComponents.map((c) => c.toComponent()),
-      buttonGroup: buttonGroup?.toComponent(),
+      ...(buttonGroup && { buttonGroup: buttonGroup.toComponent() }),
     },
   };
 };

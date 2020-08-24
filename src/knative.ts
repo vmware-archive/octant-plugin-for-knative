@@ -1,7 +1,14 @@
+/*
+ * Copyright (c) 2020 the Octant contributors. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 // core-js and regenerator-runtime are requried to ensure the correct polyfills
 // are applied by babel/webpack.
 import "core-js/stable";
 import "regenerator-runtime/runtime";
+
+import YAML from "yaml";
 
 // plugin contains interfaces your plugin can expect
 // this includes your main plugin class, response, requests, and clients.
@@ -12,18 +19,16 @@ import * as octant from "./octant/plugin";
 import * as h from "./octant/component-helpers";
 
 // components
+import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
+import { EditorFactory } from "./octant/editor";
 import { TextFactory } from "./octant/text";
+import { LinkFactory } from "./octant/link";
+import { ListFactory } from "./octant/list";
 
-// rxjs is used to show that Observables function within
-// the Octant JavaScript runtime.
-import { Subject, BehaviorSubject } from "rxjs";
-import { CardFactory } from "./octant/card";
-import { FlexLayoutFactory } from "./octant/flexlayout";
-import { ButtonGroupFactory } from "./octant/button-group";
-import { SummaryFactory } from "./octant/summary";
-
-// This plugin will handle v1/Pod types.
-let podGVK = { version: "v1", kind: "Pod" };
+import { Configuration, ConfigurationListFactory } from "./serving/configuration";
+import { Revision, RevisionListFactory } from "./serving/revision";
+import { RouteListFactory, Route } from "./serving/route";
+import { Service, ServiceListFactory, ServiceSummaryFactory } from "./serving/service";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -39,14 +44,13 @@ export default class MyPlugin implements octant.Plugin {
 
   // Plugin capabilities
   capabilities = {
-    supportPrinterConfig: [podGVK],
-    supportTab: [podGVK],
+    supportPrinterConfig: [],
+    supportTab: [],
     actionNames: ["knative/testAction", "action.octant.dev/setNamespace"],
   };
 
   // Custom plugin properties
-  actionCount: number;
-  currentNamespace: Subject<string>;
+  namespace: string;
 
   // Octant expects plugin constructors to accept two arguments, the dashboardClient and the httpClient
   constructor(
@@ -56,47 +60,16 @@ export default class MyPlugin implements octant.Plugin {
     this.dashboardClient = dashboardClient;
     this.httpClient = httpClient;
 
-    // set intial actionCount
-    this.actionCount = 0;
-    this.currentNamespace = new BehaviorSubject("default");
+    this.namespace = "default";
   }
 
   printHandler(request: octant.ObjectRequest): octant.PrintResponse {
-    const myText = new TextFactory({
-      value: "my **bold** and *emphisized* test",
-      options: { isMarkdown: true },
-    }).toComponent();
-
-    const config = new SummaryFactory({
-      sections: [{ header: "plugin-foo-config", content: myText }],
-    });
-
-    const status = new SummaryFactory({
-      sections: [{ header: "plugin-foo-status", content: myText }],
-    });
-
-    let cardA = new CardFactory({
-      body: new TextFactory({
-        value: "actionCount: " + this.actionCount + "\ncard body 1",
-      }).toComponent(),
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Card 1" }).toComponent()],
-      },
-    });
-
-    let items = [{ width: h.Width.Half, view: cardA }];
-
-    return h.createPrintResponse(config, status, items);
+    throw new Error('KnativePlugin#printHandler should never be called');
   }
 
   actionHandler(request: octant.ActionRequest): octant.ActionResponse | void {
-    if (request.actionName === "knative/testAction") {
-      this.actionCount += 1;
-      return;
-    }
-
     if (request.actionName === "action.octant.dev/setNamespace") {
-      this.currentNamespace.next(request.payload.namespace);
+      this.namespace = request.payload.namespace;
       return;
     }
 
@@ -104,77 +77,231 @@ export default class MyPlugin implements octant.Plugin {
   }
 
   tabHandler(request: octant.ObjectRequest): octant.TabResponse {
-    let cardA = new CardFactory({
-      body: new TextFactory({ value: "card body A" }).toComponent(),
-    }).toComponent();
-
-    let cardB = new CardFactory({
-      body: new TextFactory({ value: "card body B" }).toComponent(),
-    }).toComponent();
-
-    let layout = new FlexLayoutFactory({
-      options: {
-        sections: [
-          [
-            { width: h.Width.Half, view: cardA },
-            { width: h.Width.Half, view: cardB },
-          ],
-        ],
-      },
-    });
-
-    return h.createTabResponse("Knative", layout);
+    throw new Error('KnativePlugin#tabHandler should never be called');
   }
 
   navigationHandler(): octant.Navigation {
-    let nav = new h.Navigation("Yeoman Plugin", "knative", "cloud");
-    nav.add("test menu flyout", "nested-path", "folder");
+    let nav = new h.Navigation("Knative", "knative", "cloud");
+    nav.add("Services", "services");
+    nav.add("Configurations", "configurations");
+    nav.add("Revisions", "revisions");
+    nav.add("Routes", "routes");
     return nav;
   }
 
   contentHandler(request: octant.ContentRequest): octant.ContentResponse {
-    let contentPath = request.contentPath;
-    let title = [new TextFactory({ value: "Knative>" })];
-    if (contentPath.length > 0) {
-      title.push(new TextFactory({ value: contentPath }));
+    const { contentPath } = request;
+
+    // TODO use a proper path router
+    if (contentPath === "") {
+      return this.knativeOverviewHandler(request);
+    } else if (contentPath === "/services") {
+      return this.serviceListingHandler(request);
+    } else if (contentPath.startsWith("/services/")) {
+      return this.serviceDetailHandler(request);
+    } else if (contentPath === "/configurations") {
+      return this.configurationListingHandler(request);
+    } else if (contentPath === "/revisions") {
+      return this.revisionListingHandler(request);
+    } else if (contentPath === "/routes") {
+      return this.routeListingHandler(request);
     }
 
-    let namespace = "<unknown>";
-    this.currentNamespace.subscribe((data) => {
-      namespace = data;
-    });
-
-    let cardA = new CardFactory({
-      body: new TextFactory({
-        value: "actionCount: " + this.actionCount + "\ncard body 1",
-      }).toComponent(),
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Card 1" }).toComponent()],
-      },
-    });
-
-    let cardB = new CardFactory({
-      body: new TextFactory({ value: "card body 2" }).toComponent(),
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Card 2" }).toComponent()],
-      },
-    });
-
-    const testButton = {
-      name: "Test",
-      payload: { action: "knative/testAction", foo: "bar" },
-      confirmation: {
-        title: "Confirmation?",
-        body: "Confirm this button click",
-      },
-    };
-
-    let buttonGroup = new ButtonGroupFactory({
-      buttons: [testButton],
-    });
-
-    return h.createContentResponse(title, [cardA, cardB], buttonGroup);
+    // not found
+    let notFound = new TextFactory({ value: `Not Found - ${contentPath}` });
+    return h.createContentResponse([notFound], [notFound])
   }
+
+  knativeOverviewHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const title = [new TextFactory({ value: "Knative" })];
+    const body = new ListFactory({
+      factoryMetadata: {
+        title: title.map(f => f.toComponent()),
+      },
+      items: [
+        this.serviceListing({
+          title: [new TextFactory({ value: "Services" }).toComponent()],
+        }).toComponent(),
+        this.configurationListing({
+          title: [new TextFactory({ value: "Configurations" }).toComponent()],
+        }).toComponent(),
+        this.revisionListing({
+          title: [new TextFactory({ value: "Revisions" }).toComponent()],
+        }).toComponent(),
+        this.routeListing({
+          title: [new TextFactory({ value: "Routes" }).toComponent()],
+        }).toComponent(),
+      ],
+    })
+    return h.createContentResponse(title, [body]);
+  }
+
+  serviceListingHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new TextFactory({ value: "Services" }),
+    ];
+    const body = new ListFactory({
+      items: [
+        this.serviceListing({
+          title: [new TextFactory({ value: "Services" }).toComponent()],
+        }).toComponent(),
+      ],
+      factoryMetadata: {
+        title: title.map(f => f.toComponent()),
+      },
+    })
+    return h.createContentResponse(title, [body]);
+  }
+
+  serviceDetailHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const name = request.contentPath.split("/")[2];
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Services", ref: "/knative/services" }),
+      new TextFactory({ value: name }),
+    ];
+    const body = this.serviceDetail(name);
+    return h.createContentResponse(title, body);
+  }
+
+  configurationListingHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new TextFactory({ value: "Configurations" }),
+    ];
+    const body = new ListFactory({
+      items: [
+        this.configurationListing({
+          title: [new TextFactory({ value: "Configurations" }).toComponent()],
+        }).toComponent(),
+      ],
+      factoryMetadata: {
+        title: title.map(f => f.toComponent()),
+      },
+    })
+    return h.createContentResponse(title, [body]);
+  }
+
+  revisionListingHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new TextFactory({ value: "Revisions" }),
+    ];
+    const body = new ListFactory({
+      items: [
+        this.revisionListing({
+          title: [new TextFactory({ value: "Revisions" }).toComponent()],
+        }).toComponent(),
+      ],
+      factoryMetadata: {
+        title: title.map(f => f.toComponent()),
+      },
+    })
+    return h.createContentResponse(title, [body]);
+  }
+
+  routeListingHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new TextFactory({ value: "Routes" }),
+    ];
+    const body = new ListFactory({
+      items: [
+        this.routeListing({
+          title: [new TextFactory({ value: "Routes" }).toComponent()],
+        }).toComponent(),
+      ],
+      factoryMetadata: {
+        title: title.map(f => f.toComponent()),
+      },
+    })
+    return h.createContentResponse(title, [body]);
+  }
+
+  serviceListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+    const services: Service[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Service',
+      namespace: this.namespace,
+    });
+    services.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+
+    return new ServiceListFactory({ services, factoryMetadata });
+  }
+
+  serviceDetail(name: string): ComponentFactory<any>[] {
+    const service: Service = this.dashboardClient.Get({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Service',
+      namespace: this.namespace,
+      name: name,
+    });
+    const revisions: Revision[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Revision',
+      namespace: this.namespace,
+      selector: {
+        'serving.knative.dev/service': service.metadata.name,
+      },
+    });
+    revisions.sort((a, b) => parseInt(a.metadata.labels['serving.knative.dev/configurationGeneration']) - parseInt(b.metadata.labels['serving.knative.dev/configurationGeneration']));
+
+    return [
+      new ServiceSummaryFactory({
+        service,
+        revisions,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Summary" }).toComponent()],
+          accessor: "summary",
+        },
+      }),
+      new EditorFactory({
+        value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(service)), { sortMapEntries: true }),
+        // TODO figure out how to update yaml from a plugin
+        readOnly: true,
+        metadata: {},
+        factoryMetadata: {
+          title: [new TextFactory({ value: "YAML" }).toComponent()],
+          accessor: "yaml",
+        },
+      })
+    ];
+  }
+
+  configurationListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+    const configurations: Configuration[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Configuration',
+      namespace: this.namespace,
+    });
+    configurations.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+
+    return new ConfigurationListFactory({ configurations, factoryMetadata });
+  }
+
+  revisionListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+    const revisions: Revision[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Revision',
+      namespace: this.namespace,
+    });
+    revisions.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+
+    return new RevisionListFactory({ revisions, factoryMetadata });
+  }
+
+  routeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+    const routes: Route[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Route',
+      namespace: this.namespace,
+    });
+    routes.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+
+    return new RouteListFactory({ routes, factoryMetadata });
+  }
+
 }
 
 console.log("loading knative.ts");
