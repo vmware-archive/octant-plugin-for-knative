@@ -234,9 +234,13 @@ export default class MyPlugin implements octant.Plugin {
       }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(service)), { sortMapEntries: true }),
-        // TODO figure out how to update yaml from a plugin
-        readOnly: true,
-        metadata: {},
+        readOnly: false,
+        metadata: {
+          apiVersion: service.apiVersion,
+          kind: service.kind,
+          namespace: service.metadata.namespace,
+          name: service.metadata.name,
+        },
         factoryMetadata: {
           title: [new TextFactory({ value: "YAML" }).toComponent()],
           accessor: "yaml",
