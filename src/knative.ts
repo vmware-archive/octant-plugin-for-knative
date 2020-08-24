@@ -26,7 +26,7 @@ import { LinkFactory } from "./octant/link";
 import { ListFactory } from "./octant/list";
 
 import { Configuration, ConfigurationListFactory } from "./serving/configuration";
-import { Revision, RevisionListFactory } from "./serving/revision";
+import { Revision } from "./serving/revision";
 import { RouteListFactory, Route } from "./serving/route";
 import { Service, ServiceListFactory, ServiceSummaryFactory } from "./serving/service";
 
@@ -84,7 +84,6 @@ export default class MyPlugin implements octant.Plugin {
     let nav = new h.Navigation("Knative", "knative", "cloud");
     nav.add("Services", "services");
     nav.add("Configurations", "configurations");
-    nav.add("Revisions", "revisions");
     nav.add("Routes", "routes");
     return nav;
   }
@@ -101,8 +100,6 @@ export default class MyPlugin implements octant.Plugin {
       return this.serviceDetailHandler(request);
     } else if (contentPath === "/configurations") {
       return this.configurationListingHandler(request);
-    } else if (contentPath === "/revisions") {
-      return this.revisionListingHandler(request);
     } else if (contentPath === "/routes") {
       return this.routeListingHandler(request);
     }
@@ -124,9 +121,6 @@ export default class MyPlugin implements octant.Plugin {
         }).toComponent(),
         this.configurationListing({
           title: [new TextFactory({ value: "Configurations" }).toComponent()],
-        }).toComponent(),
-        this.revisionListing({
-          title: [new TextFactory({ value: "Revisions" }).toComponent()],
         }).toComponent(),
         this.routeListing({
           title: [new TextFactory({ value: "Routes" }).toComponent()],
@@ -174,24 +168,6 @@ export default class MyPlugin implements octant.Plugin {
       items: [
         this.configurationListing({
           title: [new TextFactory({ value: "Configurations" }).toComponent()],
-        }).toComponent(),
-      ],
-      factoryMetadata: {
-        title: title.map(f => f.toComponent()),
-      },
-    })
-    return h.createContentResponse(title, [body]);
-  }
-
-  revisionListingHandler(request: octant.ContentRequest): octant.ContentResponse {
-    const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
-      new TextFactory({ value: "Revisions" }),
-    ];
-    const body = new ListFactory({
-      items: [
-        this.revisionListing({
-          title: [new TextFactory({ value: "Revisions" }).toComponent()],
         }).toComponent(),
       ],
       factoryMetadata: {
@@ -278,17 +254,6 @@ export default class MyPlugin implements octant.Plugin {
     configurations.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
 
     return new ConfigurationListFactory({ configurations, factoryMetadata });
-  }
-
-  revisionListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
-    const revisions: Revision[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Revision',
-      namespace: this.namespace,
-    });
-    revisions.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
-
-    return new RevisionListFactory({ revisions, factoryMetadata });
   }
 
   routeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
