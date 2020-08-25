@@ -220,7 +220,7 @@ export default class MyPlugin implements octant.Plugin {
       kind: 'Service',
       namespace: this.namespace,
     });
-    services.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+    services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return new ServiceListFactory({ services, factoryMetadata });
   }
@@ -240,7 +240,11 @@ export default class MyPlugin implements octant.Plugin {
         'serving.knative.dev/service': service.metadata.name,
       },
     });
-    revisions.sort((a, b) => parseInt(a.metadata.labels['serving.knative.dev/configurationGeneration']) - parseInt(b.metadata.labels['serving.knative.dev/configurationGeneration']));
+    revisions.sort((a, b) => {
+      const generationA = (a.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+      const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+      return parseInt(generationA) - parseInt(generationB)
+    });
 
     return [
       new ServiceSummaryFactory({
@@ -257,8 +261,8 @@ export default class MyPlugin implements octant.Plugin {
         metadata: {
           apiVersion: service.apiVersion,
           kind: service.kind,
-          namespace: service.metadata.namespace,
-          name: service.metadata.name,
+          namespace: service.metadata.namespace || '',
+          name: service.metadata.name || '',
         },
         factoryMetadata: {
           title: [new TextFactory({ value: "YAML" }).toComponent()],
@@ -274,7 +278,7 @@ export default class MyPlugin implements octant.Plugin {
       kind: 'Configuration',
       namespace: this.namespace,
     });
-    configurations.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+    configurations.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return new ConfigurationListFactory({ configurations, factoryMetadata });
   }
@@ -285,7 +289,7 @@ export default class MyPlugin implements octant.Plugin {
       kind: 'Route',
       namespace: this.namespace,
     });
-    routes.sort((a, b) => a.metadata.name < b.metadata.name ? -1 : 1);
+    routes.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return new RouteListFactory({ routes, factoryMetadata });
   }

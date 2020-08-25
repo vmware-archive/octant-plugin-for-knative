@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { V1ObjectMeta } from "@kubernetes/client-node";
+
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
@@ -19,11 +21,7 @@ import { deleteGridAction } from "./utils";
 export interface Route {
   apiVersion: string;
   kind: string;
-  metadata: {
-    namespace: string;
-    name: string;
-    creationTimestamp: string;
-  };
+  metadata: V1ObjectMeta;
   spec: {};
   status: {
     conditions?: Condition[];
@@ -61,7 +59,7 @@ export class RouteListFactory implements ComponentFactory<any> {
           ],
         }).toComponent(),
         'Name': new LinkFactory({
-          value: metadata.name,
+          value: metadata.name || '',
           // TODO manage internal links centrally
           ref: `/knative/routes/${metadata.name}`,
           options: {
@@ -72,7 +70,7 @@ export class RouteListFactory implements ComponentFactory<any> {
         'URL': status.url
           ? new LinkFactory({ value: status.url, ref: status.url }).toComponent()
           : notFound,
-        'Age': new TimestampFactory({ timestamp: Date.parse(metadata.creationTimestamp) / 1000 }).toComponent(),
+        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
       };
     });
 

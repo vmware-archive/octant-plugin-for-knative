@@ -8,11 +8,11 @@ import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
 import { TextFactory } from "../octant/text";
 
 export interface Condition {
-  lastTransitionTime: string;
   status?: ConditionStatus;
   type: string;
   reason?: string;
   message?: string;
+  lastTransitionTime: Date;
 }
 
 export enum ConditionStatus {

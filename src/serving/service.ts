@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
+
 import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
 
 // components
@@ -23,13 +25,9 @@ import { deleteGridAction } from "./utils";
 export interface Service {
   apiVersion: string;
   kind: string;
-  metadata: {
-    namespace: string;
-    name: string;
-    creationTimestamp: string;
-  };
+  metadata: V1ObjectMeta;
   spec: {
-    template: any;
+    template: V1PodTemplateSpec;
   };
   status: {
     conditions?: Condition[];
@@ -69,7 +67,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
           ],
         }).toComponent(),
         'Name': new LinkFactory({
-          value: metadata.name,
+          value: metadata.name || '',
           // TODO manage internal links centrally
           ref: `/knative/services/${metadata.name}`,
           options: {
@@ -86,7 +84,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
         'Latest Ready': status.latestReadyRevisionName
           ? new TextFactory({ value: status.latestReadyRevisionName }).toComponent()
           : notFound,
-        'Age': new TimestampFactory({ timestamp: Date.parse(metadata.creationTimestamp) / 1000 }).toComponent(),
+        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
       };
     });
 
@@ -149,7 +147,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Image", content: new TextFactory({ value: spec.template.spec.containers[0].image }).toComponent() },
+        { header: "Image", content: new TextFactory({ value: spec.template.spec?.containers[0].image || '<not found>' }).toComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],

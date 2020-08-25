@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
+
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
@@ -19,12 +21,10 @@ import { deleteGridAction } from "./utils";
 export interface Configuration {
   apiVersion: string;
   kind: string;
-  metadata: {
-    namespace: string;
-    name: string;
-    creationTimestamp: string;
+  metadata: V1ObjectMeta;
+  spec: {
+    template: V1PodTemplateSpec;
   };
-  spec: {};
   status: {
     conditions?: Condition[];
     latestCreatedRevisionName?: string;
@@ -62,7 +62,7 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
           ],
         }).toComponent(),
         'Name': new LinkFactory({
-          value: metadata.name,
+          value: metadata.name || '',
           // TODO manage internal links centrally
           ref: `/knative/configurations/${metadata.name}`,
           options: {
@@ -76,7 +76,7 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
         'Latest Ready': status.latestReadyRevisionName
           ? new TextFactory({ value: status.latestReadyRevisionName }).toComponent()
           : notFound,
-        'Age': new TimestampFactory({ timestamp: Date.parse(metadata.creationTimestamp) / 1000 }).toComponent(),
+        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
       };
     });
 

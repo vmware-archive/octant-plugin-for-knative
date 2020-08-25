@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
+
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
@@ -19,13 +21,10 @@ import { deleteGridAction } from "./utils";
 export interface Revision {
   apiVersion: string;
   kind: string;
-  metadata: {
-    namespace: string;
-    name: string;
-    creationTimestamp: string;
-    labels: { [key: string]: string };
+  metadata: V1ObjectMeta;
+  spec: {
+    template: V1PodTemplateSpec;
   };
-  spec: {};
   status: {
     conditions?: Condition[];
     serviceName?: string;
@@ -62,7 +61,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
           ],
         }).toComponent(),
         'Name': new LinkFactory({
-          value: metadata.name,
+          value: metadata.name || '',
           // TODO manage internal links centrally
           ref: `/knative/revisions/${metadata.name}`,
           options: {
@@ -70,16 +69,16 @@ export class RevisionListFactory implements ComponentFactory<any> {
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),
-        'Config Name': metadata.labels['serving.knative.dev/configuration']
-          ? new TextFactory({ value: metadata.labels['serving.knative.dev/configuration'] }).toComponent()
+        'Config Name': (metadata.labels || {})['serving.knative.dev/configuration']
+          ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configuration'] }).toComponent()
           : notFound,
         'K8s Service Name': status.serviceName
           ? new TextFactory({ value: status.serviceName }).toComponent()
           : notFound,
-        'Generation': metadata.labels['serving.knative.dev/configurationGeneration']
-          ? new TextFactory({ value: metadata.labels['serving.knative.dev/configurationGeneration'] }).toComponent()
+        'Generation': (metadata.labels || {})['serving.knative.dev/configurationGeneration']
+          ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] }).toComponent()
           : notFound,
-        'Age': new TimestampFactory({ timestamp: Date.parse(metadata.creationTimestamp) / 1000 }).toComponent(),
+        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
       };
     });
 
