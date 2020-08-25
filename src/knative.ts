@@ -80,6 +80,10 @@ export default class MyPlugin implements octant.Plugin {
       handler: this.serviceDetailHandler,
     }]);
     this.router.add([{
+      path: "/services/:serviceName/revisions",
+      handler: this.revisionListHandler,
+    }]);
+    this.router.add([{
       path: "/services/:serviceName/revisions/:revisionName",
       handler: this.revisionDetailHandler,
     }]);
@@ -90,6 +94,10 @@ export default class MyPlugin implements octant.Plugin {
     this.router.add([{
       path: "/configurations/:configurationName",
       handler: this.configurationDetailHandler,
+    }]);
+    this.router.add([{
+      path: "/configurations/:configurationName/revisions",
+      handler: this.revisionListHandler,
     }]);
     this.router.add([{
       path: "/configurations/:configurationName/revisions/:revisionName",
@@ -167,7 +175,7 @@ export default class MyPlugin implements octant.Plugin {
 
     const result = results[0];
     const { handler, params } = result;
-    return handler.call(this, params);
+    return handler.call(this, Object.assign({}, params, request));
   }
 
   knativeOverviewHandler(params: any): octant.ContentResponse {
@@ -283,6 +291,18 @@ export default class MyPlugin implements octant.Plugin {
       ],
     });
     return h.createContentResponse(title, body, buttonGroup);
+  }
+
+  revisionListHandler(params: any): octant.ContentResponse {
+    if (params.serviceName) {
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/services/${params.serviceName}` });
+    } else if (params.configurationName) {
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/configurations/${params.configurationName}` });
+    } else {
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: "/knative" });
+    }
+
+    return h.createContentResponse([], [new TextFactory({ value: "redirecting..." })]);
   }
 
   revisionDetailHandler(params: any): octant.ContentResponse {

@@ -52,6 +52,7 @@ export interface ActionRequest {
 export interface ContentRequest {
   client: DashboardClient;
   contentPath: string;
+  clientID: string;
 }
 
 export interface ActionResponse {
@@ -70,6 +71,7 @@ export interface DashboardClient {
    */
   Delete(key: Key): never;
   RefPath(object: any): string;
+  SendEvent(clientID: string, eventType: string, payload: any): string;
 }
 
 export interface HTTPClient {
