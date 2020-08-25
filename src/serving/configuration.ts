@@ -170,6 +170,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
+      baseHref: `/knative/configurations/${this.configuration.metadata.name}`,
       factoryMetadata: {
         title: [new TextFactory({ value: "Revisions" }).toComponent()],
       },

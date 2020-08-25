@@ -177,6 +177,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
+      baseHref: `/knative/services/${this.service.metadata.name}`,
       factoryMetadata: {
         title: [new TextFactory({ value: "Revisions" }).toComponent()],
       },
