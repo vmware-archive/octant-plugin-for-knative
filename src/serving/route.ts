@@ -8,8 +8,10 @@ import { V1ObjectMeta } from "@kubernetes/client-node";
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { FlexLayoutFactory } from "../octant/flexlayout";
 import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
+import { SummaryFactory } from "../octant/summary";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
@@ -22,11 +24,20 @@ export interface Route {
   apiVersion: string;
   kind: string;
   metadata: V1ObjectMeta;
-  spec: {};
+  spec: {
+    traffic: TrafficPolicy[];
+  };
   status: {
     conditions?: Condition[];
     url?: string;
   };
+}
+
+export interface TrafficPolicy {
+  configurationName?: string;
+  revisionName?: string;
+  latestRevision: boolean;
+  percent: number;
 }
 
 interface RouteListParameters {
@@ -91,4 +102,95 @@ export class RouteListFactory implements ComponentFactory<any> {
 
     return table.toComponent();
   }
+}
+
+interface RouteDetailParameters {
+  route: Route;
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class RouteSummaryFactory implements ComponentFactory<any> {
+  private readonly route: Route;
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  constructor({ route, factoryMetadata }: RouteDetailParameters) {
+    this.route = route;
+    this.factoryMetadata = factoryMetadata;
+  }
+  
+  toComponent(): Component<any> {
+    const layout = new FlexLayoutFactory({
+      options: {
+        sections: [
+          [
+            { view: this.toSpecComponent(), width: 12 },
+            { view: this.toStatusComponent(), width: 12 },
+          ],
+        ],
+      },
+      factoryMetadata: this.factoryMetadata,
+    });
+    return layout.toComponent();
+  }
+
+  toSpecComponent(): Component<any> {
+    let rows = this.route.spec.traffic.map(traffic => {
+
+      let type = '', name = '';
+      if (traffic.configurationName) {
+        type = 'Configuration';
+        name = traffic.configurationName;
+      } else if (traffic.revisionName) {
+        type = 'Revision';
+        name = traffic.revisionName;
+      }
+
+      return {
+        'Name': new LinkFactory({
+          value: name,
+          // TODO manage internal links centrally
+          ref: `/knative/${type.toLowerCase()}s/${name}`,
+        }).toComponent(),
+        'Type': new TextFactory({ value: type }).toComponent(),
+        'Percent': new TextFactory({ value: `${traffic.percent}%` }).toComponent(),
+      };
+    });
+
+    let columns = [
+      'Name',
+      'Type',
+      'Percent',
+    ].map(name => ({ name, accessor: name }));
+
+    let table = new TableFactory({
+      columns,
+      rows,
+      emptyContent: "There are no traffic rules!",
+      loading: false,
+      filters: {},
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Traffic" }).toComponent()],
+      },
+    });
+
+    return table.toComponent();
+  }
+
+  toStatusComponent(): Component<any> {
+    const { status } = this.route;
+
+    const conditions = (status.conditions || []) as Condition[];
+    const ready = conditions.find(cond => cond.type === "Ready");
+
+    const summary = new SummaryFactory({
+      sections: [
+        { header: "Ready", content: new TextFactory({ value: ready?.status || ConditionStatus.Unknown }).toComponent() },
+      ],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Status" }).toComponent()],
+      },
+    });
+    return summary.toComponent();
+  }
+
 }

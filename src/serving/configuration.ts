@@ -8,13 +8,16 @@ import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { FlexLayoutFactory } from "../octant/flexlayout";
 import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
+import { SummaryFactory } from "../octant/summary";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, Condition } from "./conditions";
+import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
+import { RevisionListFactory, Revision } from "./revision";
 import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
@@ -98,4 +101,79 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
 
     return table.toComponent();
   }
+}
+
+interface ConfigurationDetailParameters {
+  configuration: Configuration;
+  revisions: Revision[];
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class ConfigurationSummaryFactory implements ComponentFactory<any> {
+  private readonly configuration: Configuration;
+  private readonly revisions: Revision[];
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  constructor({ configuration, revisions, factoryMetadata }: ConfigurationDetailParameters) {
+    this.configuration = configuration;
+    this.revisions = revisions;
+    this.factoryMetadata = factoryMetadata;
+  }
+  
+  toComponent(): Component<any> {
+    const layout = new FlexLayoutFactory({
+      options: {
+        sections: [
+          [
+            { view: this.toSpecComponent(), width: 12 },
+            { view: this.toStatusComponent(), width: 12 },
+            { view: this.toRevisionListComponent(), width: 24 },
+          ],
+        ],
+      },
+      factoryMetadata: this.factoryMetadata,
+    });
+    return layout.toComponent();
+  }
+
+  toSpecComponent(): Component<any> {
+    const { metadata, spec } = this.configuration;
+
+    const summary = new SummaryFactory({
+      sections: [
+        { header: "Image", content: new TextFactory({ value: spec.template.spec?.containers[0].image || '<not found>' }).toComponent() },
+      ],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Spec" }).toComponent()],
+      },
+    });
+    return summary.toComponent();
+  }
+
+  toStatusComponent(): Component<any> {
+    const { status } = this.configuration;
+
+    const conditions = (status.conditions || []) as Condition[];
+    const ready = conditions.find(cond => cond.type === "Ready");
+
+    const summary = new SummaryFactory({
+      sections: [
+        { header: "Ready", content: new TextFactory({ value: ready?.status || ConditionStatus.Unknown }).toComponent() },
+      ],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Status" }).toComponent()],
+      },
+    });
+    return summary.toComponent();
+  }
+
+  toRevisionListComponent(): Component<any> {
+    return new RevisionListFactory({
+      revisions: this.revisions,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Revisions" }).toComponent()],
+      },
+    }).toComponent();
+  }
+
 }

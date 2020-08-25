@@ -5,8 +5,6 @@
 
 import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
 
-import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
-
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
@@ -18,7 +16,9 @@ import { TimestampFactory } from "../octant/timestamp";
 import { FlexLayoutFactory } from "../octant/flexlayout";
 import { SummaryFactory } from "../octant/summary";
 
+import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
 import { RevisionListFactory, Revision } from "./revision";
+import { TrafficPolicy } from "./route";
 import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
@@ -28,6 +28,7 @@ export interface Service {
   metadata: V1ObjectMeta;
   spec: {
     template: V1PodTemplateSpec;
+    traffic: TrafficPolicy[];
   };
   status: {
     conditions?: Condition[];

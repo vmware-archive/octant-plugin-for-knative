@@ -25,9 +25,9 @@ import { TextFactory } from "./octant/text";
 import { LinkFactory } from "./octant/link";
 import { ListFactory } from "./octant/list";
 
-import { Configuration, ConfigurationListFactory } from "./serving/configuration";
+import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
 import { Revision } from "./serving/revision";
-import { RouteListFactory, Route } from "./serving/route";
+import { Route, RouteListFactory, RouteSummaryFactory } from "./serving/route";
 import { Service, ServiceListFactory, ServiceSummaryFactory } from "./serving/service";
 import { ButtonGroupFactory } from "./octant/button-group";
 
@@ -101,8 +101,12 @@ export default class MyPlugin implements octant.Plugin {
       return this.serviceDetailHandler(request);
     } else if (contentPath === "/configurations") {
       return this.configurationListingHandler(request);
+    } else if (contentPath.startsWith("/configurations/")) {
+      return this.configurationDetailHandler(request);
     } else if (contentPath === "/routes") {
       return this.routeListingHandler(request);
+    } else if (contentPath.startsWith("/routes/")) {
+      return this.routeDetailHandler(request);
     }
 
     // not found
@@ -196,6 +200,35 @@ export default class MyPlugin implements octant.Plugin {
     return h.createContentResponse(title, [body]);
   }
 
+  configurationDetailHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const name = request.contentPath.split("/")[2];
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Configurations", ref: "/knative/configurations" }),
+      new TextFactory({ value: name }),
+    ];
+    const body = this.configurationDetail(name);
+    const buttonGroup = new ButtonGroupFactory({
+      buttons: [
+        {
+          name: "Delete",
+          payload: {
+            action: "action.octant.dev/deleteObject",
+            apiVersion: "serving.knative.dev/v1",
+            kind:       "Configuration",
+            namespace:  this.namespace,
+            name:       name,
+          },
+          confirmation: {
+            title: "Delete Configuration",
+            body: `Are you sure you want to delete *Configuration* **${name}**? This action is permanent and cannot be recovered.`,
+          },
+        },
+      ],
+    });
+    return h.createContentResponse(title, body, buttonGroup);
+  }
+
   routeListingHandler(request: octant.ContentRequest): octant.ContentResponse {
     const title = [
       new LinkFactory({ value: "Knative", ref: "/knative" }),
@@ -212,6 +245,35 @@ export default class MyPlugin implements octant.Plugin {
       },
     })
     return h.createContentResponse(title, [body]);
+  }
+
+  routeDetailHandler(request: octant.ContentRequest): octant.ContentResponse {
+    const name = request.contentPath.split("/")[2];
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Routes", ref: "/knative/routes" }),
+      new TextFactory({ value: name }),
+    ];
+    const body = this.routeDetail(name);
+    const buttonGroup = new ButtonGroupFactory({
+      buttons: [
+        {
+          name: "Delete",
+          payload: {
+            action: "action.octant.dev/deleteObject",
+            apiVersion: "serving.knative.dev/v1",
+            kind:       "Route",
+            namespace:  this.namespace,
+            name:       name,
+          },
+          confirmation: {
+            title: "Delete Route",
+            body: `Are you sure you want to delete *Route* **${name}**? This action is permanent and cannot be recovered.`,
+          },
+        },
+      ],
+    });
+    return h.createContentResponse(title, body, buttonGroup);
   }
 
   serviceListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
@@ -283,6 +345,53 @@ export default class MyPlugin implements octant.Plugin {
     return new ConfigurationListFactory({ configurations, factoryMetadata });
   }
 
+  configurationDetail(name: string): ComponentFactory<any>[] {
+    const configuration: Configuration = this.dashboardClient.Get({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Configuration',
+      namespace: this.namespace,
+      name: name,
+    });
+    const revisions: Revision[] = this.dashboardClient.List({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Revision',
+      namespace: this.namespace,
+      selector: {
+        'serving.knative.dev/configuration': configuration.metadata.name,
+      },
+    });
+    revisions.sort((a, b) => {
+      const generationA = (a.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+      const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+      return parseInt(generationA) - parseInt(generationB)
+    });
+
+    return [
+      new ConfigurationSummaryFactory({
+        configuration,
+        revisions,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Summary" }).toComponent()],
+          accessor: "summary",
+        },
+      }),
+      new EditorFactory({
+        value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(configuration)), { sortMapEntries: true }),
+        readOnly: false,
+        metadata: {
+          apiVersion: configuration.apiVersion,
+          kind: configuration.kind,
+          namespace: configuration.metadata.namespace || '',
+          name: configuration.metadata.name || '',
+        },
+        factoryMetadata: {
+          title: [new TextFactory({ value: "YAML" }).toComponent()],
+          accessor: "yaml",
+        },
+      })
+    ];
+  }
+
   routeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
     const routes: Route[] = this.dashboardClient.List({
       apiVersion: 'serving.knative.dev/v1',
@@ -292,6 +401,39 @@ export default class MyPlugin implements octant.Plugin {
     routes.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return new RouteListFactory({ routes, factoryMetadata });
+  }
+
+  routeDetail(name: string): ComponentFactory<any>[] {
+    const route: Route = this.dashboardClient.Get({
+      apiVersion: 'serving.knative.dev/v1',
+      kind: 'Route',
+      namespace: this.namespace,
+      name: name,
+    });
+
+    return [
+      new RouteSummaryFactory({
+        route,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Summary" }).toComponent()],
+          accessor: "summary",
+        },
+      }),
+      new EditorFactory({
+        value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(route)), { sortMapEntries: true }),
+        readOnly: false,
+        metadata: {
+          apiVersion: route.apiVersion,
+          kind: route.kind,
+          namespace: route.metadata.namespace || '',
+          name: route.metadata.name || '',
+        },
+        factoryMetadata: {
+          title: [new TextFactory({ value: "YAML" }).toComponent()],
+          accessor: "yaml",
+        },
+      })
+    ];
   }
 
 }
