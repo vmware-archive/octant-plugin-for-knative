@@ -4,6 +4,7 @@
  */
 
 import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
+import YAML from "yaml";
 
 // components
 import { Component } from "../octant/component";
@@ -150,6 +151,36 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       sections: [
         { header: "Image", content: new TextFactory({ value: spec.template.spec?.containers[0].image || '<not found>' }).toComponent() },
       ],
+      options: {
+        actions: [
+          {
+            name: "Edit",
+            title: "Edit Service",
+            form: {
+              fields: [
+                {
+                  type: "hidden",
+                  name: "action",
+                  value: "knative.dev/editService",
+                },
+                {
+                  type: "hidden",
+                  name: "service",
+                  value: YAML.stringify(JSON.parse(JSON.stringify(this.service)), { sortMapEntries: true }),
+                },
+                {
+                  type: "text",
+                  name: "image",
+                  value: spec.template.spec?.containers[0].image || "",
+                  label: "Image",
+                  configuration: {},
+                },
+              ],
+            },
+            modal: false,
+          },
+        ],
+      },
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
       },

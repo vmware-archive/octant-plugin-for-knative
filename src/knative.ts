@@ -50,7 +50,11 @@ export default class MyPlugin implements octant.Plugin {
   capabilities = {
     supportPrinterConfig: [],
     supportTab: [],
-    actionNames: ["knative/testAction", "action.octant.dev/setNamespace"],
+    actionNames: [
+      "knative.dev/editConfiguration",
+      "knative.dev/editService",
+      "action.octant.dev/setNamespace",
+    ],
   };
 
   // Custom plugin properties
@@ -108,6 +112,26 @@ export default class MyPlugin implements octant.Plugin {
   actionHandler(request: octant.ActionRequest): octant.ActionResponse | void {
     if (request.actionName === "action.octant.dev/setNamespace") {
       this.namespace = request.payload.namespace;
+      return;
+    }
+
+    if (request.actionName === "knative.dev/editService") {
+      const service = YAML.parse(request.payload.service);
+
+      // apply edits
+      service.spec.template.spec.containers[0].image = request.payload.image;
+      
+      this.dashboardClient.Update(service.metadata.namespace, JSON.stringify(service));
+      return;
+    }
+
+    if (request.actionName === "knative.dev/editConfiguration") {
+      const configuration = YAML.parse(request.payload.configuration);
+
+      // apply edits
+      configuration.spec.template.spec.containers[0].image = request.payload.image;
+      
+      this.dashboardClient.Update(configuration.metadata.namespace, JSON.stringify(configuration));
       return;
     }
 
@@ -380,7 +404,7 @@ export default class MyPlugin implements octant.Plugin {
     revisions.sort((a, b) => {
       const generationA = (a.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
       const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
-      return parseInt(generationA) - parseInt(generationB)
+      return parseInt(generationB) - parseInt(generationA)
     });
 
     return [
@@ -438,7 +462,7 @@ export default class MyPlugin implements octant.Plugin {
     revisions.sort((a, b) => {
       const generationA = (a.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
       const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
-      return parseInt(generationA) - parseInt(generationB)
+      return parseInt(generationB) - parseInt(generationA)
     });
 
     return [
