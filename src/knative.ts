@@ -302,7 +302,7 @@ export default class MyPlugin implements octant.Plugin {
       this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: "/knative" });
     }
 
-    return h.createContentResponse([], [new TextFactory({ value: "redirecting..." })]);
+    return h.createContentResponse([], []);
   }
 
   revisionDetailHandler(params: any): octant.ContentResponse {
