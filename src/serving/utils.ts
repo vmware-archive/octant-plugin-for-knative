@@ -22,7 +22,7 @@ export function deleteGridAction(obj: any): GridAction {
       apiVersion: obj.apiVersion,
       kind: obj.kind,
       namespace: obj.metadata.namespace,
-      name: obj.name,
+      name: obj.metadata.name,
     },
     confirmation: {   
       title: `Delete ${obj.kind}`,

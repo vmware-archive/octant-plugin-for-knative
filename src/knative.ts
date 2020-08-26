@@ -195,7 +195,7 @@ export default class MyPlugin implements octant.Plugin {
           title: [new TextFactory({ value: "Routes" }).toComponent()],
         }).toComponent(),
       ],
-    })
+    });
     return h.createContentResponse(title, [body]);
   }
 
@@ -260,7 +260,7 @@ export default class MyPlugin implements octant.Plugin {
       factoryMetadata: {
         title: title.map(f => f.toComponent()),
       },
-    })
+    });
     return h.createContentResponse(title, [body]);
   }
 
@@ -362,7 +362,7 @@ export default class MyPlugin implements octant.Plugin {
       factoryMetadata: {
         title: title.map(f => f.toComponent()),
       },
-    })
+    });
     return h.createContentResponse(title, [body]);
   }
 
