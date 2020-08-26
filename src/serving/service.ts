@@ -9,12 +9,13 @@ import YAML from "yaml";
 // components
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { FlexLayoutFactory } from "../octant/flexlayout";
 import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
+import { ListFactory } from "../octant/list";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
-import { FlexLayoutFactory } from "../octant/flexlayout";
 import { SummaryFactory } from "../octant/summary";
 
 import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
@@ -37,6 +38,77 @@ export interface Service {
     latestCreatedRevisionName?: string;
     latestReadyRevisionName?: string;
   };
+}
+
+interface NewServiceParameters {
+  clientID: string;
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class NewServiceFactory implements ComponentFactory<any> {
+  private readonly clientID: string;
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  constructor({ clientID, factoryMetadata }: NewServiceParameters) {
+    this.clientID = clientID;
+    this.factoryMetadata = factoryMetadata;
+  }
+  
+  toComponent(): Component<any> {
+    // TODO hack to render a form, any form. Replace with something real
+    const form = new SummaryFactory({
+      sections: [],
+      options: {
+        actions: [
+          {
+            name: "Create",
+            title: "Create Service",
+            form: {
+              fields: [
+                {
+                  type: "hidden",
+                  name: "action",
+                  value: "knative.dev/newService",
+                },
+                {
+                  type: "hidden",
+                  name: "clientID",
+                  value: this.clientID,
+                },
+                {
+                  type: "text",
+                  name: "name",
+                  value: "",
+                  label: "Name",
+                  configuration: {},
+                },
+                {
+                  type: "text",
+                  name: "revisionName",
+                  value: "",
+                  label: "Revision Name",
+                  configuration: {},
+                },
+                {
+                  type: "text",
+                  name: "image",
+                  value: "",
+                  label: "Image",
+                  configuration: {},
+                },
+              ],
+            },
+            modal: false,
+          },
+        ],
+      },
+    });
+    const layout = new ListFactory({
+      items: [form.toComponent()],
+      factoryMetadata: this.factoryMetadata,
+    });
+    return layout.toComponent();
+  }
 }
 
 interface ServiceListParameters {
@@ -167,6 +239,13 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
                   type: "hidden",
                   name: "service",
                   value: YAML.stringify(JSON.parse(JSON.stringify(this.service)), { sortMapEntries: true }),
+                },
+                {
+                  type: "text",
+                  name: "revisionName",
+                  value: "",
+                  label: "Revision Name",
+                  configuration: {},
                 },
                 {
                   type: "text",

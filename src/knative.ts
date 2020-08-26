@@ -22,6 +22,7 @@ import * as h from "./octant/component-helpers";
 // components
 import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
 import { EditorFactory } from "./octant/editor";
+import { FlexLayoutFactory } from "./octant/flexlayout";
 import { TextFactory } from "./octant/text";
 import { LinkFactory } from "./octant/link";
 import { ListFactory } from "./octant/list";
@@ -29,7 +30,7 @@ import { ListFactory } from "./octant/list";
 import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
 import { Revision, RevisionSummaryFactory } from "./serving/revision";
 import { Route, RouteListFactory, RouteSummaryFactory } from "./serving/route";
-import { Service, ServiceListFactory, ServiceSummaryFactory } from "./serving/service";
+import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory } from "./serving/service";
 import { ButtonGroupFactory } from "./octant/button-group";
 import { V1Pod } from "@kubernetes/client-node";
 
@@ -53,6 +54,8 @@ export default class MyPlugin implements octant.Plugin {
     actionNames: [
       "knative.dev/editConfiguration",
       "knative.dev/editService",
+      "knative.dev/newService",
+      "knative.dev/setContentPath",
       "action.octant.dev/setNamespace",
     ],
   };
@@ -74,6 +77,10 @@ export default class MyPlugin implements octant.Plugin {
     this.router.add([{
       path: "/services",
       handler: this.serviceListingHandler,
+    }]);
+    this.router.add([{
+      path: "/services/_new",
+      handler: this.newServiceHandler,
     }]);
     this.router.add([{
       path: "/services/:serviceName",
@@ -126,7 +133,15 @@ export default class MyPlugin implements octant.Plugin {
     if (request.actionName === "knative.dev/editService") {
       const service = YAML.parse(request.payload.service);
 
+      // TODO this should not be necessary
+      delete service.metadata.managedFields;
+
       // apply edits
+      if (request.payload.revisionName) {
+        service.spec.template.metadata.name = `${service.metadata.name}-${request.payload.revisionName}`;
+      } else {
+        delete service.spec.template.metadata.name;
+      }
       service.spec.template.spec.containers[0].image = request.payload.image;
       
       this.dashboardClient.Update(service.metadata.namespace, JSON.stringify(service));
@@ -136,10 +151,55 @@ export default class MyPlugin implements octant.Plugin {
     if (request.actionName === "knative.dev/editConfiguration") {
       const configuration = YAML.parse(request.payload.configuration);
 
+      // TODO this should not be necessary
+      delete configuration.metadata.managedFields;
+
       // apply edits
+      if (request.payload.revisionName) {
+        configuration.spec.template.metadata.name = `${configuration.metadata.name}-${request.payload.revisionName}`;
+      } else {
+        delete configuration.spec.template.metadata.name;
+      }
       configuration.spec.template.spec.containers[0].image = request.payload.image;
       
       this.dashboardClient.Update(configuration.metadata.namespace, JSON.stringify(configuration));
+      return;
+    }
+
+    if (request.actionName === "knative.dev/newService") {
+      const resource = {
+        apiVersion: "serving.knative.dev/v1",
+        kind: "Service",
+        metadata: {
+          namespace: this.namespace,
+          name: request.payload.name,
+        },
+        spec: {
+          template: {
+            metadata: {
+              ...(request.payload.revisionName && { name: request.payload.revisionName }),
+            },
+            spec: {
+              containers: [
+                {
+                  image: request.payload.image,
+                },
+              ],
+            },
+          },
+        },
+      };
+
+      // TODO handle errors
+      this.dashboardClient.Update(this.namespace, JSON.stringify(resource));
+      this.dashboardClient.SendEvent(request.payload.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/services/${request.payload.name}` });
+
+      return;
+    }
+
+    if (request.actionName === "knative.dev/setContentPath") {
+      this.dashboardClient.SendEvent(request.payload.clientID, "event.octant.dev/contentPath", { contentPath: request.payload.contentPath });
+
       return;
     }
 
@@ -163,7 +223,7 @@ export default class MyPlugin implements octant.Plugin {
 
     if (contentPath === "") {
       // the router isn't able to match this path for some reason, so hard code it
-      return this.knativeOverviewHandler({});
+      return this.knativeOverviewHandler(request);
     }
 
     const results: any = this.router.recognize(contentPath);
@@ -185,7 +245,7 @@ export default class MyPlugin implements octant.Plugin {
         title: title.map(f => f.toComponent()),
       },
       items: [
-        this.serviceListing({
+        this.serviceListing(params.clientID, {
           title: [new TextFactory({ value: "Services" }).toComponent()],
         }).toComponent(),
         this.configurationListing({
@@ -206,7 +266,7 @@ export default class MyPlugin implements octant.Plugin {
     ];
     const body = new ListFactory({
       items: [
-        this.serviceListing({
+        this.serviceListing(params.clientID, {
           title: [new TextFactory({ value: "Services" }).toComponent()],
         }).toComponent(),
       ],
@@ -214,7 +274,29 @@ export default class MyPlugin implements octant.Plugin {
         title: title.map(f => f.toComponent()),
       },
     })
-    return h.createContentResponse(title, [body]);
+    const buttonGroup = new ButtonGroupFactory({
+      buttons: [
+        {
+          name: "Create Service",
+          payload: {
+            action: "knative.dev/setContentPath",
+            clientID: params.clientID,
+            contentPath: "/knative/services/_new",
+          },
+        },
+      ],
+    });
+    return h.createContentResponse(title, [body], buttonGroup);
+  }
+
+  newServiceHandler(params: any): octant.ContentResponse {
+    const title = [
+      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Services", ref: "/knative/services" }),
+      new TextFactory({ value: "New Service" }),
+    ];
+    const body = this.newService(params.clientID, { title: title.map(c => c.toComponent()) });
+    return h.createContentResponse(title, body);
   }
 
   serviceDetailHandler(params: any): octant.ContentResponse {
@@ -395,7 +477,7 @@ export default class MyPlugin implements octant.Plugin {
     return h.createContentResponse(title, body, buttonGroup);
   }
 
-  serviceListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+  serviceListing(clientID: string, factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
     const services: Service[] = this.dashboardClient.List({
       apiVersion: 'serving.knative.dev/v1',
       kind: 'Service',
@@ -403,7 +485,37 @@ export default class MyPlugin implements octant.Plugin {
     });
     services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    return new ServiceListFactory({ services, factoryMetadata });
+    const serviceList = new ServiceListFactory({ services, factoryMetadata });
+
+    const buttonGroup = new ButtonGroupFactory({
+      buttons: [
+        {
+          name: "Create Service",
+          payload: {
+            action: "knative.dev/setContentPath",
+            clientID: clientID,
+            contentPath: "/knative/services/_new",
+          },
+        },
+      ],
+    });
+
+    return new FlexLayoutFactory({
+      options: {
+        buttonGroup: buttonGroup.toComponent(),
+        sections: [
+          [
+            { view: serviceList.toComponent(), width: 24 },
+          ],
+        ],
+      },
+    });
+  }
+
+  newService(clientID: string, factoryMetadata?: FactoryMetadata ): ComponentFactory<any>[] {
+    const form = new NewServiceFactory({ clientID, factoryMetadata });
+    
+    return [form];
   }
 
   serviceDetail(name: string): ComponentFactory<any>[] {

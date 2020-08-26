@@ -163,6 +163,13 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
                 },
                 {
                   type: "text",
+                  name: "revisionName",
+                  value: "",
+                  label: "Revision Name",
+                  configuration: {},
+                },
+                {
+                  type: "text",
                   name: "image",
                   value: spec.template.spec?.containers[0].image || "",
                   label: "Image",
