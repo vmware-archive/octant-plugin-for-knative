@@ -21,30 +21,31 @@ export enum ConditionStatus {
   Unknown = "Unknown",
 }
 
-interface ConditionSummaryParameters {
-  condition?: Condition;
-  factoryMetadata?: FactoryMetadata;
+interface ConditionParameters {
+  conditions?: Condition[];
+  type: string;
 }
 
 export class ConditionSummaryFactory implements ComponentFactory<any> {
   private readonly condition?: Condition;
-  private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ condition, factoryMetadata }: ConditionSummaryParameters) {
-    this.condition = condition;
-    this.factoryMetadata = factoryMetadata;
+  constructor({ conditions, type }: ConditionParameters) {
+    this.condition = findConditionByType(conditions, type);
   }
   
   toComponent(): Component<any> {
-    const { factoryMetadata } = this;
+    let value = ConditionStatus.Unknown as string;
 
     if (this.condition?.status === ConditionStatus.True) {
-      return new TextFactory({ value: "Ready", factoryMetadata }).toComponent();
+      value = this.condition?.type;
     } else if (this.condition?.status == ConditionStatus.False) {
-      return new TextFactory({ value: `${this.condition.reason}: ${this.condition.message}`, factoryMetadata }).toComponent();
-    } else {
-      return new TextFactory({ value: "Unknown", factoryMetadata }).toComponent();
+      value = `Not ${this.condition?.type}`;
     }
+    if (this.condition?.reason) {
+      value = `${value} - ${this.condition?.reason}`;
+    }
+
+    return new TextFactory({ value }).toComponent();
   }
 
   status(): number {
@@ -56,4 +57,29 @@ export class ConditionSummaryFactory implements ComponentFactory<any> {
       return 2;
     }
   }
+}
+
+export class ConditionStatusFactory implements ComponentFactory<any> {
+  private readonly condition?: Condition;
+
+  constructor({ conditions, type }: ConditionParameters) {
+    this.condition = findConditionByType(conditions, type);
+  }
+  
+  toComponent(): Component<any> {
+    let value = this.condition?.status || ConditionStatus.Unknown as string;
+
+    if (this.condition?.reason) {
+      value = `${value} - ${this.condition?.reason}`;
+    }
+    if (this.condition?.message) {
+      value = `${value}: ${this.condition?.message}`;
+    }
+
+    return new TextFactory({ value }).toComponent();
+  }
+}
+
+function findConditionByType(conditions: Condition[] | undefined, type: string): Condition | undefined {
+  return (conditions || []).find(cond => cond.type === type);
 }

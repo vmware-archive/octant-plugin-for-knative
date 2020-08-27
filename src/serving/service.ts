@@ -18,7 +18,7 @@ import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 import { SummaryFactory } from "../octant/summary";
 
-import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { RevisionListFactory, Revision } from "./revision";
 import { TrafficPolicyTableFactory, TrafficPolicy } from "./route";
 import { deleteGridAction } from "./utils";
@@ -36,6 +36,9 @@ export interface Service {
   status: {
     conditions?: Condition[];
     url?: string;
+    address?: {
+      url?: string;
+    };
     latestCreatedRevisionName?: string;
     latestReadyRevisionName?: string;
   };
@@ -133,8 +136,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
     let rows = this.services.map(service => {
       const { metadata, spec, status } = service;
 
-      const conditions = (status.conditions || []) as Condition[];
-      const ready = new ConditionSummaryFactory({ condition: conditions.find(cond => cond.type === "Ready") });
+      const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
@@ -274,14 +276,19 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   }
 
   toStatusComponent(): Component<any> {
-    const { status } = this.service;
+    const { metadata, status } = this.service;
 
-    const conditions = (status.conditions || []) as Condition[];
-    const ready = conditions.find(cond => cond.type === "Ready");
+    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new TextFactory({ value: ready?.status || ConditionStatus.Unknown }).toComponent() },
+        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
+        { header: "Configurations Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type:  "ConfigurationsReady" }).toComponent() },
+        { header: "Routes Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "RoutesReady" }).toComponent() },
+        { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
+        { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
+        { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: `/knative/services/${metadata.name}/revisions/${status.latestCreatedRevisionName}` }).toComponent() : unknown },
+        { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: `/knative/services/${metadata.name}/revisions/${status.latestReadyRevisionName}` }).toComponent() : unknown },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],

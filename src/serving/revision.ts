@@ -16,7 +16,7 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
@@ -28,6 +28,7 @@ export interface Revision {
   status: {
     conditions?: Condition[];
     serviceName?: string;
+    imageDigest?: string;
   };
 }
 
@@ -52,8 +53,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
     let rows = this.revisions.map(revision => {
       const { metadata, spec, status } = revision;
       
-      const conditions = (status.conditions || []) as Condition[];
-      const ready = new ConditionSummaryFactory({ condition: conditions.find(cond => cond.type === "Ready") });
+      const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
@@ -147,12 +147,15 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
   toStatusComponent(): Component<any> {
     const { status } = this.revision;
 
-    const conditions = (status.conditions || []) as Condition[];
-    const ready = conditions.find(cond => cond.type === "Ready");
+    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new TextFactory({ value: ready?.status || ConditionStatus.Unknown }).toComponent() },
+        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
+        { header: "Active", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Active" }).toComponent() },
+        { header: "Container Healthy", content: new ConditionStatusFactory({ conditions: status.conditions, type: "ContainerHealthy" }).toComponent() },
+        { header: "Resources Available", content: new ConditionStatusFactory({ conditions: status.conditions, type: "ResourcesAvailable" }).toComponent() },
+        { header: "Image", content: status.imageDigest ? new TextFactory({ value: status.imageDigest }).toComponent() : unknown },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],

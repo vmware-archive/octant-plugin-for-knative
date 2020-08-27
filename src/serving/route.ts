@@ -16,7 +16,7 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { deleteGridAction } from "./utils";
 
 // TODO fully fresh out
@@ -29,6 +29,9 @@ export interface Route {
   };
   status: {
     conditions?: Condition[];
+    address: {
+      url?: string;
+    };
     url?: string;
   };
 }
@@ -58,8 +61,7 @@ export class RouteListFactory implements ComponentFactory<any> {
     let rows = this.routes.map(route => {
       const { metadata, spec, status } = route;
 
-      const conditions = (status.conditions || []) as Condition[];
-      const ready = new ConditionSummaryFactory({ condition: conditions.find(cond => cond.type === "Ready") });
+      const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
@@ -140,12 +142,13 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   toStatusComponent(): Component<any> {
     const { status } = this.route;
 
-    const conditions = (status.conditions || []) as Condition[];
-    const ready = conditions.find(cond => cond.type === "Ready");
+    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new TextFactory({ value: ready?.status || ConditionStatus.Unknown }).toComponent() },
+        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
+        { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
+        { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
