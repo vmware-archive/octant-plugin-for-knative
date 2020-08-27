@@ -71,12 +71,6 @@ export class RevisionListFactory implements ComponentFactory<any> {
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),
-        'Config Name': (metadata.labels || {})['serving.knative.dev/configuration']
-          ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configuration'] }).toComponent()
-          : notFound,
-        'K8s Service Name': status.serviceName
-          ? new TextFactory({ value: status.serviceName }).toComponent()
-          : notFound,
         'Generation': (metadata.labels || {})['serving.knative.dev/configurationGeneration']
           ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] }).toComponent()
           : notFound,
@@ -86,8 +80,6 @@ export class RevisionListFactory implements ComponentFactory<any> {
 
     let columns = [
       'Name',
-      'Config Name',
-      'K8s Service Name',
       'Generation',
       'Age',
     ].map(name => ({ name, accessor: name }));

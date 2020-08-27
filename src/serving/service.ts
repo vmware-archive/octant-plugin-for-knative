@@ -20,7 +20,7 @@ import { SummaryFactory } from "../octant/summary";
 
 import { ConditionSummaryFactory, Condition, ConditionStatus } from "./conditions";
 import { RevisionListFactory, Revision } from "./revision";
-import { TrafficPolicy } from "./route";
+import { TrafficPolicyTableFactory, TrafficPolicy } from "./route";
 import { deleteGridAction } from "./utils";
 import { ButtonGroupFactory } from "../octant/button-group";
 
@@ -212,7 +212,8 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: 12 },
             { view: this.toStatusComponent(), width: 12 },
-            { view: this.toRevisionListComponent(), width: 24 },
+            { view: this.toTrafficPolicyComponent(), width: 12 },
+            { view: this.toRevisionListComponent(), width: 12 },
           ],
         ],
       },
@@ -287,6 +288,10 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       },
     });
     return summary.toComponent();
+  }
+
+  toTrafficPolicyComponent(): Component<any> {
+    return new TrafficPolicyTableFactory({ trafficPolicy: this.service.spec.traffic }).toComponent();
   }
 
   toRevisionListComponent(): Component<any> {

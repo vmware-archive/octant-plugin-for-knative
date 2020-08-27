@@ -134,46 +134,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   }
 
   toSpecComponent(): Component<any> {
-    let rows = this.route.spec.traffic.map(traffic => {
-
-      let type = '', name = '';
-      if (traffic.configurationName) {
-        type = 'Configuration';
-        name = traffic.configurationName;
-      } else if (traffic.revisionName) {
-        type = 'Revision';
-        name = traffic.revisionName;
-      }
-
-      return {
-        'Name': new LinkFactory({
-          value: name,
-          // TODO manage internal links centrally
-          ref: `/knative/${type.toLowerCase()}s/${name}`,
-        }).toComponent(),
-        'Type': new TextFactory({ value: type }).toComponent(),
-        'Percent': new TextFactory({ value: `${traffic.percent}%` }).toComponent(),
-      };
-    });
-
-    let columns = [
-      'Name',
-      'Type',
-      'Percent',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no traffic rules!",
-      loading: false,
-      filters: {},
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Traffic" }).toComponent()],
-      },
-    });
-
-    return table.toComponent();
+    return new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic }).toComponent();
   }
 
   toStatusComponent(): Component<any> {
@@ -193,4 +154,65 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
     return summary.toComponent();
   }
 
+}
+
+interface TrafficPolicyTableParameters {
+  trafficPolicy: TrafficPolicy[];
+}
+
+export class TrafficPolicyTableFactory implements ComponentFactory<any> {
+  private readonly trafficPolicy: TrafficPolicy[];
+
+  constructor({ trafficPolicy }: TrafficPolicyTableParameters) {
+    this.trafficPolicy = trafficPolicy;
+  }
+  
+  toComponent(): Component<any> {
+    let rows = this.trafficPolicy.map(tp => {
+
+      let type = 'Latest Revision';
+      let name: ComponentFactory<any> = new TextFactory({ value: 'n/a' });
+      if (tp.configurationName) {
+        type = 'Configuration';
+        name = new LinkFactory({
+          value: tp.configurationName,
+          // TODO manage internal links centrally
+          ref: `/knative/configurations/${tp.configurationName}`,
+        });
+      } else if (tp.revisionName) {
+        type = 'Revision';
+        name = new LinkFactory({
+          value: tp.revisionName,
+          // TODO manage internal links centrally
+          // TODO lookup the configuration for this revision
+          ref: `/knative/configurations/_/revisions/${tp.revisionName}`,
+        });
+      }
+
+      return {
+        'Name': name.toComponent(),
+        'Type': new TextFactory({ value: type }).toComponent(),
+        'Percent': new TextFactory({ value: `${tp.percent}%` }).toComponent(),
+      };
+    });
+
+    let columns = [
+      'Name',
+      'Type',
+      'Percent',
+    ].map(name => ({ name, accessor: name }));
+
+    let table = new TableFactory({
+      columns,
+      rows,
+      emptyContent: "There are no traffic rules!",
+      loading: false,
+      filters: {},
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Traffic Policy" }).toComponent()],
+      },
+    });
+
+    return table.toComponent();
+  }
 }
