@@ -22,7 +22,6 @@ import * as h from "./octant/component-helpers";
 // components
 import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
 import { EditorFactory } from "./octant/editor";
-import { FlexLayoutFactory } from "./octant/flexlayout";
 import { TextFactory } from "./octant/text";
 import { LinkFactory } from "./octant/link";
 import { ListFactory } from "./octant/list";
@@ -274,19 +273,7 @@ export default class MyPlugin implements octant.Plugin {
         title: title.map(f => f.toComponent()),
       },
     })
-    const buttonGroup = new ButtonGroupFactory({
-      buttons: [
-        {
-          name: "Create Service",
-          payload: {
-            action: "knative.dev/setContentPath",
-            clientID: params.clientID,
-            contentPath: "/knative/services/_new",
-          },
-        },
-      ],
-    });
-    return h.createContentResponse(title, [body], buttonGroup);
+    return h.createContentResponse(title, [body]);
   }
 
   newServiceHandler(params: any): octant.ContentResponse {
@@ -485,12 +472,10 @@ export default class MyPlugin implements octant.Plugin {
     });
     services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    const serviceList = new ServiceListFactory({ services, factoryMetadata });
-
     const buttonGroup = new ButtonGroupFactory({
       buttons: [
         {
-          name: "Create Service",
+          name: "New Service",
           payload: {
             action: "knative.dev/setContentPath",
             clientID: clientID,
@@ -498,18 +483,10 @@ export default class MyPlugin implements octant.Plugin {
           },
         },
       ],
+      factoryMetadata,
     });
 
-    return new FlexLayoutFactory({
-      options: {
-        buttonGroup: buttonGroup.toComponent(),
-        sections: [
-          [
-            { view: serviceList.toComponent(), width: 24 },
-          ],
-        ],
-      },
-    });
+    return new ServiceListFactory({ services, buttonGroup, factoryMetadata });
   }
 
   newService(clientID: string, factoryMetadata?: FactoryMetadata ): ComponentFactory<any>[] {

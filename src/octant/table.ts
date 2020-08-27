@@ -7,6 +7,7 @@
 
 import { ComponentFactory, FactoryMetadata } from './component-factory';
 import { Component } from './component';
+import { ButtonGroupFactory } from './button-group';
 
 export interface TableConfig {
   columns: {
@@ -38,6 +39,7 @@ interface TableParameters {
       selected: string[];
     };
   };
+  buttonGroup?: ButtonGroupFactory;
   factoryMetadata?: FactoryMetadata;
 }
 
@@ -55,6 +57,7 @@ export class TableFactory implements ComponentFactory<TableConfig> {
       selected: string[];
     };
   };
+  private readonly buttonGroup: ButtonGroupFactory | undefined;
   private readonly factoryMetadata: FactoryMetadata | undefined;
 
   constructor({
@@ -63,6 +66,7 @@ export class TableFactory implements ComponentFactory<TableConfig> {
     emptyContent,
     loading,
     filters,
+    buttonGroup,
     factoryMetadata,
   }: TableParameters) {
     this.columns = columns;
@@ -70,6 +74,7 @@ export class TableFactory implements ComponentFactory<TableConfig> {
     this.emptyContent = emptyContent;
     this.loading = loading;
     this.filters = filters;
+    this.buttonGroup = buttonGroup;
     this.factoryMetadata = factoryMetadata;
   }
 
@@ -85,6 +90,7 @@ export class TableFactory implements ComponentFactory<TableConfig> {
         emptyContent: this.emptyContent,
         loading: this.loading,
         filters: this.filters,
+        ...(this.buttonGroup && { buttonGroup: this.buttonGroup.toComponent() }),
       },
     };
   }

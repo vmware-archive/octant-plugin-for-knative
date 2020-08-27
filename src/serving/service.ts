@@ -22,6 +22,7 @@ import { ConditionSummaryFactory, Condition, ConditionStatus } from "./condition
 import { RevisionListFactory, Revision } from "./revision";
 import { TrafficPolicy } from "./route";
 import { deleteGridAction } from "./utils";
+import { ButtonGroupFactory } from "../octant/button-group";
 
 // TODO fully fresh out
 export interface Service {
@@ -61,7 +62,7 @@ export class NewServiceFactory implements ComponentFactory<any> {
       options: {
         actions: [
           {
-            name: "Create",
+            name: "Configure",
             title: "Create Service",
             form: {
               fields: [
@@ -113,15 +114,18 @@ export class NewServiceFactory implements ComponentFactory<any> {
 
 interface ServiceListParameters {
   services: Service[];
+  buttonGroup?: ButtonGroupFactory;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceListFactory implements ComponentFactory<any> {
   private readonly services: Service[];
+  private readonly buttonGroup?: ButtonGroupFactory;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ services, factoryMetadata }: ServiceListParameters) {
+  constructor({ services, buttonGroup, factoryMetadata }: ServiceListParameters) {
     this.services = services;
+    this.buttonGroup = buttonGroup;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -176,6 +180,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
       emptyContent: "There are no services!",
       loading: false,
       filters: {},
+      ...(this.buttonGroup && { buttonGroup: this.buttonGroup }),
       factoryMetadata: this.factoryMetadata,
     });
 
@@ -226,7 +231,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       options: {
         actions: [
           {
-            name: "Edit",
+            name: "Configure",
             title: "Edit Service",
             form: {
               fields: [

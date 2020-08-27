@@ -147,7 +147,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       options: {
         actions: [
           {
-            name: "Edit",
+            name: "Configure",
             title: "Edit Configuration",
             form: {
               fields: [
