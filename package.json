@@ -43,7 +43,7 @@
     "core-js": "^3.6.5",
     "es-check": "^5.1.0",
     "regenerator-runtime": "^0.13.5",
-    "ts-loader": "^7.0.5",
+    "ts-loader": "^8.0.3",
     "tsc-watch": "^4.2.9",
     "typescript": "^3.9.7",
     "webpack": "^4.43.0",
