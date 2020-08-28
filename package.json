@@ -1,11 +1,19 @@
 {
-  "name": "knative",
-  "files": [
-    "src/"
-  ],
-  "types": "src/octant.d.ts",
+  "name": "@project-octant/plugin-for-knative",
   "version": "0.1.0",
-  "description": "Knative plugin for Octant",
+  "description": "Octant Plugin for Knative",
+  "license": "Apache-2.0",
+  "keywords": [
+    "octant",
+    "octant-plugin",
+    "knative",
+    "serving"
+  ],
+  "homepage": "https://octant.dev",
+  "bugs": {
+    "url": "https://github.com/vmware-tanzu/octant-plugin-for-knative/issues"
+  },
+  "private": true,
   "scripts": {
     "plugin:check": "tsc --noEmit",
     "plugin:watch": "npx tsc-watch --noEmit --onSuccess \"npm run plugin:dev-no-check\"",
@@ -14,12 +22,11 @@
     "plugin:prod": "tsc --noEmit && webpack --env=production --output dist/knative.js",
     "plugin:install": "tsc --noEmit && webpack --env=production --output ~/.config/octant/plugins/knative.js"
   },
-  "keywords": [
-    "octant",
-    "octant-plugin"
-  ],
-  "author": "",
-  "license": "Apache-2.0",
+  "dependencies": {
+    "@kubernetes/client-node": "^0.12.0",
+    "route-recognizer": "^0.3.4",
+    "yaml": "^1.10.0"
+  },
   "devDependencies": {
     "@babel/cli": "^7.8.3",
     "@babel/core": "^7.8.3",
@@ -35,16 +42,11 @@
     "babel-loader": "^8.1.0",
     "core-js": "^3.6.5",
     "es-check": "^5.1.0",
+    "regenerator-runtime": "^0.13.5",
     "ts-loader": "^7.0.5",
     "tsc-watch": "^4.2.9",
     "typescript": "^3.9.7",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.12"
-  },
-  "dependencies": {
-    "@kubernetes/client-node": "^0.12.0",
-    "regenerator-runtime": "^0.13.5",
-    "route-recognizer": "^0.3.4",
-    "yaml": "^1.10.0"
   }
 }
