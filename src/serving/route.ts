@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta } from "@kubernetes/client-node";
+import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node";
 
 // components
 import { Component } from "../octant/component";
@@ -16,8 +16,8 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
-import { deleteGridAction } from "./utils";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision } from "../utils";
 
 // TODO fully fresh out
 export interface Route {
@@ -45,15 +45,18 @@ export interface TrafficPolicy {
 
 interface RouteListParameters {
   routes: Route[];
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteListFactory implements ComponentFactory<any> {
   private readonly routes: Route[];
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ routes, factoryMetadata }: RouteListParameters) {
+  constructor({ routes, linker, factoryMetadata }: RouteListParameters) {
     this.routes = routes;
+    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -73,8 +76,7 @@ export class RouteListFactory implements ComponentFactory<any> {
         }).toComponent(),
         'Name': new LinkFactory({
           value: metadata.name || '',
-          // TODO manage internal links centrally
-          ref: `/knative/routes/${metadata.name}`,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
           options: {
             status: ready.status(),
             statusDetail: ready.toComponent(),
@@ -108,15 +110,18 @@ export class RouteListFactory implements ComponentFactory<any> {
 
 interface RouteDetailParameters {
   route: Route;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteSummaryFactory implements ComponentFactory<any> {
   private readonly route: Route;
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ route, factoryMetadata }: RouteDetailParameters) {
+  constructor({ route, linker, factoryMetadata }: RouteDetailParameters) {
     this.route = route;
+    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -136,7 +141,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   }
 
   toSpecComponent(): Component<any> {
-    return new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic }).toComponent();
+    return new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, linker: this.linker }).toComponent();
   }
 
   toStatusComponent(): Component<any> {
@@ -161,13 +166,16 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
 interface TrafficPolicyTableParameters {
   trafficPolicy: TrafficPolicy[];
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 }
 
 export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   private readonly trafficPolicy: TrafficPolicy[];
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 
-  constructor({ trafficPolicy }: TrafficPolicyTableParameters) {
+  constructor({ trafficPolicy, linker }: TrafficPolicyTableParameters) {
     this.trafficPolicy = trafficPolicy;
+    this.linker = linker;
   }
   
   toComponent(): Component<any> {
@@ -176,19 +184,17 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
       let type = 'Latest Revision';
       let name: ComponentFactory<any> = new TextFactory({ value: 'n/a' });
       if (tp.configurationName) {
-        type = 'Configuration';
+        type = ServingV1Configuration;
         name = new LinkFactory({
           value: tp.configurationName,
-          // TODO manage internal links centrally
-          ref: `/knative/configurations/${tp.configurationName}`,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: tp.configurationName }),
         });
       } else if (tp.revisionName) {
-        type = 'Revision';
+        type = ServingV1Revision;
         name = new LinkFactory({
           value: tp.revisionName,
-          // TODO manage internal links centrally
           // TODO lookup the configuration for this revision
-          ref: `/knative/configurations/_/revisions/${tp.revisionName}`,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       }
 

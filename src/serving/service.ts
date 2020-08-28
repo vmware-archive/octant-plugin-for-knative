@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodTemplateSpec } from "@kubernetes/client-node";
+import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/client-node";
 import YAML from "yaml";
 
 // components
+import { ButtonGroupFactory } from "../octant/button-group";
 import { Component } from "../octant/component";
 import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
 import { FlexLayoutFactory } from "../octant/flexlayout";
@@ -18,11 +19,11 @@ import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 import { SummaryFactory } from "../octant/summary";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { RevisionListFactory, Revision } from "./revision";
 import { TrafficPolicyTableFactory, TrafficPolicy } from "./route";
-import { deleteGridAction } from "./utils";
-import { ButtonGroupFactory } from "../octant/button-group";
+
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision } from "../utils";
 
 // TODO fully fresh out
 export interface Service {
@@ -118,17 +119,20 @@ export class NewServiceFactory implements ComponentFactory<any> {
 interface ServiceListParameters {
   services: Service[];
   buttonGroup?: ButtonGroupFactory;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceListFactory implements ComponentFactory<any> {
   private readonly services: Service[];
   private readonly buttonGroup?: ButtonGroupFactory;
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ services, buttonGroup, factoryMetadata }: ServiceListParameters) {
+  constructor({ services, buttonGroup, linker, factoryMetadata }: ServiceListParameters) {
     this.services = services;
     this.buttonGroup = buttonGroup;
+    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -149,7 +153,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
         'Name': new LinkFactory({
           value: metadata.name || '',
           // TODO manage internal links centrally
-          ref: `/knative/services/${metadata.name}`,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
           options: {
             status: ready.status(),
             statusDetail: ready.toComponent(),
@@ -193,17 +197,20 @@ export class ServiceListFactory implements ComponentFactory<any> {
 interface ServiceDetailParameters {
   service: Service;
   revisions: Revision[];
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly service: Service;
   private readonly revisions: Revision[];
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ service, revisions, factoryMetadata }: ServiceDetailParameters) {
+  constructor({ service, revisions, linker, factoryMetadata }: ServiceDetailParameters) {
     this.service = service;
     this.revisions = revisions;
+    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -287,8 +294,8 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
         { header: "Routes Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "RoutesReady" }).toComponent() },
         { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
-        { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: `/knative/services/${metadata.name}/revisions/${status.latestCreatedRevisionName}` }).toComponent() : unknown },
-        { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: `/knative/services/${metadata.name}/revisions/${status.latestReadyRevisionName}` }).toComponent() : unknown },
+        { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
+        { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
@@ -298,13 +305,14 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   }
 
   toTrafficPolicyComponent(): Component<any> {
-    return new TrafficPolicyTableFactory({ trafficPolicy: this.service.spec.traffic }).toComponent();
+    return new TrafficPolicyTableFactory({ trafficPolicy: this.service.spec.traffic, linker: this.linker }).toComponent();
   }
 
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
-      baseHref: `/knative/services/${this.service.metadata.name}`,
+      context: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
+      linker: this.linker,
       factoryMetadata: {
         title: [new TextFactory({ value: "Revisions" }).toComponent()],
       },

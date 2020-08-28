@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodSpec, V1Pod } from "@kubernetes/client-node";
+import { V1ObjectMeta, V1PodSpec, V1Pod, V1ObjectReference } from "@kubernetes/client-node";
 
 // components
 import { Component } from "../octant/component";
@@ -16,8 +16,8 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
-import { deleteGridAction } from "./utils";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { deleteGridAction, ServingV1, ServingV1Revision } from "../utils";
 
 // TODO fully fresh out
 export interface Revision {
@@ -34,18 +34,21 @@ export interface Revision {
 
 interface RevisionListParameters {
   revisions: Revision[];
-  baseHref: string;
+  context: V1ObjectReference;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RevisionListFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
-  private readonly baseHref: string;
+  private readonly context: V1ObjectReference;
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revisions, baseHref, factoryMetadata }: RevisionListParameters) {
+  constructor({ revisions, context, linker, factoryMetadata }: RevisionListParameters) {
     this.revisions = revisions;
-    this.baseHref = baseHref;
+    this.context = context;
+    this.linker = linker
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -65,7 +68,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
         }).toComponent(),
         'Name': new LinkFactory({
           value: metadata.name || '',
-          ref: `${this.baseHref}/revisions/${metadata.name}`,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
           options: {
             status: ready.status(),
             statusDetail: ready.toComponent(),

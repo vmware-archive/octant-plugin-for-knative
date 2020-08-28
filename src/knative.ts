@@ -20,6 +20,7 @@ import * as octant from "./octant/plugin";
 import * as h from "./octant/component-helpers";
 
 // components
+import { ButtonGroupFactory } from "./octant/button-group";
 import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
 import { EditorFactory } from "./octant/editor";
 import { TextFactory } from "./octant/text";
@@ -30,8 +31,10 @@ import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } 
 import { Revision, RevisionSummaryFactory } from "./serving/revision";
 import { Route, RouteListFactory, RouteSummaryFactory } from "./serving/route";
 import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory } from "./serving/service";
-import { ButtonGroupFactory } from "./octant/button-group";
-import { V1Pod } from "@kubernetes/client-node";
+
+import { MetadataSummaryFactory } from "./metadata";
+import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
+import { V1Pod, V1ObjectReference } from "@kubernetes/client-node";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -45,6 +48,7 @@ export default class MyPlugin implements octant.Plugin {
   dashboardClient: octant.DashboardClient;
   httpClient: octant.HTTPClient;
   router: RouteRecognizer;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 
   // Plugin capabilities
   capabilities = {
@@ -73,6 +77,8 @@ export default class MyPlugin implements octant.Plugin {
     this.namespace = "default";
 
     this.router = new RouteRecognizer();
+    this.linker = (ref: V1ObjectReference, context?: V1ObjectReference) => knativeLinker(this.dashboardClient.RefPath, ref, context);
+
     this.router.add([{
       path: "/services",
       handler: this.serviceListingHandler,
@@ -167,8 +173,8 @@ export default class MyPlugin implements octant.Plugin {
 
     if (request.actionName === "knative.dev/newService") {
       const resource = {
-        apiVersion: "serving.knative.dev/v1",
-        kind: "Service",
+        apiVersion: ServingV1,
+        kind: ServingV1Service,
         metadata: {
           namespace: this.namespace,
           name: request.payload.name,
@@ -191,7 +197,8 @@ export default class MyPlugin implements octant.Plugin {
 
       // TODO handle errors
       this.dashboardClient.Update(this.namespace, JSON.stringify(resource));
-      this.dashboardClient.SendEvent(request.payload.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/services/${request.payload.name}` });
+      const newContentPath = this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: request.payload.name });
+      this.dashboardClient.SendEvent(request.payload.clientID, "event.octant.dev/contentPath", { contentPath: newContentPath });
 
       return;
     }
@@ -260,7 +267,7 @@ export default class MyPlugin implements octant.Plugin {
 
   serviceListingHandler(params: any): octant.ContentResponse {
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
       new TextFactory({ value: "Services" }),
     ];
     const body = new ListFactory({
@@ -278,8 +285,8 @@ export default class MyPlugin implements octant.Plugin {
 
   newServiceHandler(params: any): octant.ContentResponse {
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
-      new LinkFactory({ value: "Services", ref: "/knative/services" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+      new LinkFactory({ value: "Services", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service }) }),
       new TextFactory({ value: "New Service" }),
     ];
     const body = this.newService(params.clientID, { title: title.map(c => c.toComponent()) });
@@ -289,8 +296,8 @@ export default class MyPlugin implements octant.Plugin {
   serviceDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.serviceName;
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
-      new LinkFactory({ value: "Services", ref: "/knative/services" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+      new LinkFactory({ value: "Services", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service }) }),
       new TextFactory({ value: name }),
     ];
     const body = this.serviceDetail(name);
@@ -300,8 +307,8 @@ export default class MyPlugin implements octant.Plugin {
           name: "Delete",
           payload: {
             action: "action.octant.dev/deleteObject",
-            apiVersion: "serving.knative.dev/v1",
-            kind:       "Service",
+            apiVersion: ServingV1,
+            kind:       ServingV1Service,
             namespace:  this.namespace,
             name:       name,
           },
@@ -317,7 +324,7 @@ export default class MyPlugin implements octant.Plugin {
 
   configurationListingHandler(params: any): octant.ContentResponse {
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
       new TextFactory({ value: "Configurations" }),
     ];
     const body = new ListFactory({
@@ -336,8 +343,8 @@ export default class MyPlugin implements octant.Plugin {
   configurationDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.configurationName;
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
-      new LinkFactory({ value: "Configurations", ref: "/knative/configurations" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+      new LinkFactory({ value: "Configurations", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration }) }),
       new TextFactory({ value: name }),
     ];
     const body = this.configurationDetail(name);
@@ -347,8 +354,8 @@ export default class MyPlugin implements octant.Plugin {
           name: "Delete",
           payload: {
             action: "action.octant.dev/deleteObject",
-            apiVersion: "serving.knative.dev/v1",
-            kind:       "Configuration",
+            apiVersion: ServingV1,
+            kind:       ServingV1Configuration,
             namespace:  this.namespace,
             name:       name,
           },
@@ -364,11 +371,14 @@ export default class MyPlugin implements octant.Plugin {
 
   revisionListHandler(params: any): octant.ContentResponse {
     if (params.serviceName) {
-      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/services/${params.serviceName}` });
+      const contentPath = this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: params.serviceName })
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath });
     } else if (params.configurationName) {
-      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: `/knative/configurations/${params.configurationName}` });
+      const contentPath = this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: params.configurationName })
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath });
     } else {
-      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: "/knative" });
+      const contentPath = this.linker({ apiVersion: ServingV1 });
+      this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath });
     }
 
     return h.createContentResponse([], []);
@@ -379,18 +389,18 @@ export default class MyPlugin implements octant.Plugin {
     const title = [];
     if (params.serviceName) {
       title.push(
-        new LinkFactory({ value: "Knative", ref: "/knative" }),
-        new LinkFactory({ value: "Services", ref: "/knative/services" }),
-        new LinkFactory({ value: params.serviceName, ref: `/knative/services/${params.serviceName}` }),
-        new LinkFactory({ value: "Revisions", ref: `/knative/services/${params.serviceName}/revisions` }),
+        new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+        new LinkFactory({ value: "Services", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service }) }),
+        new LinkFactory({ value: params.serviceName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: params.serviceName }) }),
+        new LinkFactory({ value: "Revisions", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision }, { apiVersion: ServingV1, kind: ServingV1Service, name: params.serviceName }) }),
         new TextFactory({ value: name }),
       );
     } else if (params.configurationName) {
       title.push(
-        new LinkFactory({ value: "Knative", ref: "/knative" }),
-        new LinkFactory({ value: "Configurations", ref: "/knative/configurations" }),
-        new LinkFactory({ value: params.configurationName, ref: `/knative/configurations/${params.configurationName}` }),
-        new LinkFactory({ value: "Revisions", ref: `/knative/configurations/${params.configurationName}/revisions` }),
+        new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+        new LinkFactory({ value: "Configurations", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration }) }),
+        new LinkFactory({ value: params.configurationName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: params.configurationName }) }),
+        new LinkFactory({ value: "Revisions", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: params.configurationName }) }),
         new TextFactory({ value: name }),
       );
     }
@@ -402,8 +412,8 @@ export default class MyPlugin implements octant.Plugin {
           name: "Delete",
           payload: {
             action: "action.octant.dev/deleteObject",
-            apiVersion: "serving.knative.dev/v1",
-            kind:       "Revision",
+            apiVersion: ServingV1,
+            kind:       ServingV1Revision,
             namespace:  this.namespace,
             name:       name,
           },
@@ -419,7 +429,7 @@ export default class MyPlugin implements octant.Plugin {
 
   routeListingHandler(params: any): octant.ContentResponse {
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
       new TextFactory({ value: "Routes" }),
     ];
     const body = new ListFactory({
@@ -438,8 +448,8 @@ export default class MyPlugin implements octant.Plugin {
   routeDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.routeName;
     const title = [
-      new LinkFactory({ value: "Knative", ref: "/knative" }),
-      new LinkFactory({ value: "Routes", ref: "/knative/routes" }),
+      new LinkFactory({ value: "Knative", ref: this.linker({ apiVersion: ServingV1 }) }),
+      new LinkFactory({ value: "Routes", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route }) }),
       new TextFactory({ value: name }),
     ];
     const body = this.routeDetail(name);
@@ -449,8 +459,8 @@ export default class MyPlugin implements octant.Plugin {
           name: "Delete",
           payload: {
             action: "action.octant.dev/deleteObject",
-            apiVersion: "serving.knative.dev/v1",
-            kind:       "Route",
+            apiVersion: ServingV1,
+            kind:       ServingV1Route,
             namespace:  this.namespace,
             name:       name,
           },
@@ -466,8 +476,8 @@ export default class MyPlugin implements octant.Plugin {
 
   serviceListing(clientID: string, factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
     const services: Service[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Service',
+      apiVersion: ServingV1,
+      kind: ServingV1Service,
       namespace: this.namespace,
     });
     services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
@@ -479,14 +489,14 @@ export default class MyPlugin implements octant.Plugin {
           payload: {
             action: "knative.dev/setContentPath",
             clientID: clientID,
-            contentPath: "/knative/services/_new",
+            contentPath: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: "_new" }),
           },
         },
       ],
       factoryMetadata,
     });
 
-    return new ServiceListFactory({ services, buttonGroup, factoryMetadata });
+    return new ServiceListFactory({ services, buttonGroup, linker: this.linker, factoryMetadata });
   }
 
   newService(clientID: string, factoryMetadata?: FactoryMetadata ): ComponentFactory<any>[] {
@@ -497,14 +507,14 @@ export default class MyPlugin implements octant.Plugin {
 
   serviceDetail(name: string): ComponentFactory<any>[] {
     const service: Service = this.dashboardClient.Get({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Service',
+      apiVersion: ServingV1,
+      kind: ServingV1Service,
       namespace: this.namespace,
       name: name,
     });
     const revisions: Revision[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Revision',
+      apiVersion: ServingV1,
+      kind: ServingV1Revision,
       namespace: this.namespace,
       selector: {
         'serving.knative.dev/service': service.metadata.name,
@@ -520,9 +530,18 @@ export default class MyPlugin implements octant.Plugin {
       new ServiceSummaryFactory({
         service,
         revisions,
+        linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
+        },
+      }),
+      new MetadataSummaryFactory({
+        object: service,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Metadata" }).toComponent()],
+          accessor: "metadata",
         },
       }),
       new EditorFactory({
@@ -544,25 +563,25 @@ export default class MyPlugin implements octant.Plugin {
 
   configurationListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
     const configurations: Configuration[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Configuration',
+      apiVersion: ServingV1,
+      kind: ServingV1Configuration,
       namespace: this.namespace,
     });
     configurations.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    return new ConfigurationListFactory({ configurations, factoryMetadata });
+    return new ConfigurationListFactory({ configurations, linker: this.linker, factoryMetadata });
   }
 
   configurationDetail(name: string): ComponentFactory<any>[] {
     const configuration: Configuration = this.dashboardClient.Get({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Configuration',
+      apiVersion: ServingV1,
+      kind: ServingV1Configuration,
       namespace: this.namespace,
       name: name,
     });
     const revisions: Revision[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Revision',
+      apiVersion: ServingV1,
+      kind: ServingV1Revision,
       namespace: this.namespace,
       selector: {
         'serving.knative.dev/configuration': configuration.metadata.name,
@@ -578,9 +597,18 @@ export default class MyPlugin implements octant.Plugin {
       new ConfigurationSummaryFactory({
         configuration,
         revisions,
+        linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
+        },
+      }),
+      new MetadataSummaryFactory({
+        object: configuration,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Metadata" }).toComponent()],
+          accessor: "metadata",
         },
       }),
       new EditorFactory({
@@ -602,8 +630,8 @@ export default class MyPlugin implements octant.Plugin {
 
   revisionDetail(name: string): ComponentFactory<any>[] {
     const revision: Revision = this.dashboardClient.Get({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Revision',
+      apiVersion: ServingV1,
+      kind: ServingV1Revision,
       namespace: this.namespace,
       name: name,
     });
@@ -626,6 +654,14 @@ export default class MyPlugin implements octant.Plugin {
           accessor: "summary",
         },
       }),
+      new MetadataSummaryFactory({
+        object: revision,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Metadata" }).toComponent()],
+          accessor: "metadata",
+        },
+      }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(revision)), { sortMapEntries: true }),
         readOnly: false,
@@ -645,19 +681,19 @@ export default class MyPlugin implements octant.Plugin {
 
   routeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
     const routes: Route[] = this.dashboardClient.List({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Route',
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
       namespace: this.namespace,
     });
     routes.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    return new RouteListFactory({ routes, factoryMetadata });
+    return new RouteListFactory({ routes, linker: this.linker, factoryMetadata });
   }
 
   routeDetail(name: string): ComponentFactory<any>[] {
     const route: Route = this.dashboardClient.Get({
-      apiVersion: 'serving.knative.dev/v1',
-      kind: 'Route',
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
       namespace: this.namespace,
       name: name,
     });
@@ -665,9 +701,18 @@ export default class MyPlugin implements octant.Plugin {
     return [
       new RouteSummaryFactory({
         route,
+        linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
+        },
+      }),
+      new MetadataSummaryFactory({
+        object: route,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Metadata" }).toComponent()],
+          accessor: "metadata",
         },
       }),
       new EditorFactory({
