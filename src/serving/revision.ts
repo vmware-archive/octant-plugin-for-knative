@@ -60,7 +60,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
 
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
-      return {
+      const row = {
         '_action': new GridActionsFactory({
           actions: [
             deleteGridAction(revision),
@@ -78,7 +78,13 @@ export class RevisionListFactory implements ComponentFactory<any> {
           ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] }).toComponent()
           : notFound,
         'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      };
+      } as { [key: string]: Component<any> };
+
+      if (metadata?.deletionTimestamp) {
+        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
+      }
+
+      return row;
     });
 
     let columns = [
@@ -204,7 +210,7 @@ export class PodListFactory implements ComponentFactory<any> {
       }
       const readyStatusDetail = new TextFactory({ value: status?.message || "Unknown" }).toComponent();
 
-      return {
+      const row = {
         '_action': new GridActionsFactory({
           actions: [
             deleteGridAction(pod),
@@ -219,7 +225,13 @@ export class PodListFactory implements ComponentFactory<any> {
           },
         }).toComponent(),
         'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata?.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      };
+      } as { [key: string]: Component<any> };
+
+      if (metadata?.deletionTimestamp) {
+        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
+      }
+
+      return row;
     });
 
     let columns = [

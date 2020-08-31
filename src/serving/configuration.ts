@@ -62,7 +62,7 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
 
       let notFound = new TextFactory({ value: '<not found>' }).toComponent();
 
-      return {
+      const row = {
         '_action': new GridActionsFactory({
           actions: [
             deleteGridAction(configuration),
@@ -83,7 +83,13 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
           ? new TextFactory({ value: status.latestReadyRevisionName }).toComponent()
           : notFound,
         'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      };
+      } as { [key: string]: Component<any> };
+
+      if (metadata?.deletionTimestamp) {
+        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
+      }
+
+      return row;
     });
 
     let columns = [
