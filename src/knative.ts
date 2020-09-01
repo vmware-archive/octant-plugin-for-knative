@@ -35,6 +35,7 @@ import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory }
 import { MetadataSummaryFactory } from "./metadata";
 import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
 import { V1Pod, V1ObjectReference } from "@kubernetes/client-node";
+import { notFoundContentResponse } from "./not-found";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -235,13 +236,17 @@ export default class MyPlugin implements octant.Plugin {
     const results: any = this.router.recognize(contentPath);
     if (!results) {
       // not found
-      let notFound = new TextFactory({ value: `Not Found - ${contentPath}` });
-      return h.createContentResponse([notFound], [notFound])
+      return notFoundContentResponse({ contentPath });
     }
 
     const result = results[0];
     const { handler, params } = result;
-    return handler.call(this, Object.assign({}, params, request));
+    try {
+      return handler.call(this, Object.assign({}, params, request));
+    } catch (e) {
+      // TODO handle errors other than not found
+      return notFoundContentResponse({ contentPath });
+    }
   }
 
   knativeOverviewHandler(params: any): octant.ContentResponse {

@@ -4,6 +4,7 @@
  */
 
 import { V1ObjectReference } from "@kubernetes/client-node";
+import { ComponentFactory } from "./octant/component-factory";
 
 export const ServingV1 = "serving.knative.dev/v1";
 export const ServingV1Service = "Service";
