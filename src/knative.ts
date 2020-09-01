@@ -29,8 +29,8 @@ import { ListFactory } from "./octant/list";
 
 import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
 import { Revision, RevisionSummaryFactory } from "./serving/revision";
-import { Route, RouteListFactory, RouteSummaryFactory } from "./serving/route";
-import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory } from "./serving/service";
+import { Route, RouteDataPlaneViewerFactory, RouteListFactory, RouteSummaryFactory } from "./serving/route";
+import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory, ServiceResourceViewerFactory } from "./serving/service";
 
 import { MetadataSummaryFactory } from "./metadata";
 import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
@@ -517,6 +517,14 @@ export default class MyPlugin implements octant.Plugin {
       namespace: this.namespace,
       name: name,
     });
+    const routes: Route[] = this.dashboardClient.List({
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
+      namespace: service.metadata.namespace,
+      selector: { "serving.knative.dev/service": service.metadata.name },
+    });
+    // TODO verify the route is controlled by this service
+    const route = routes[0];
     const revisions: Revision[] = this.dashboardClient.List({
       apiVersion: ServingV1,
       kind: ServingV1Revision,
@@ -547,6 +555,24 @@ export default class MyPlugin implements octant.Plugin {
         factoryMetadata: {
           title: [new TextFactory({ value: "Metadata" }).toComponent()],
           accessor: "metadata",
+        },
+      }),
+      new RouteDataPlaneViewerFactory({
+        route,
+        dashboardClient: this.dashboardClient,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Data Plane" }).toComponent()],
+          accessor: "dataPlane",
+        },
+      }),
+      new ServiceResourceViewerFactory({
+        service,
+        dashboardClient: this.dashboardClient,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Resource Viewer" }).toComponent()],
+          accessor: "resourceViewer",
         },
       }),
       new EditorFactory({
@@ -718,6 +744,15 @@ export default class MyPlugin implements octant.Plugin {
         factoryMetadata: {
           title: [new TextFactory({ value: "Metadata" }).toComponent()],
           accessor: "metadata",
+        },
+      }),
+      new RouteDataPlaneViewerFactory({
+        route,
+        dashboardClient: this.dashboardClient,
+        linker: this.linker,
+        factoryMetadata: {
+          title: [new TextFactory({ value: "Data Plane" }).toComponent()],
+          accessor: "dataPlane",
         },
       }),
       new EditorFactory({

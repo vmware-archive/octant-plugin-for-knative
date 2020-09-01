@@ -16,8 +16,9 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Revision } from "../utils";
+import { RuntimeObject } from "../metadata";
 
 // TODO fully fresh out
 export interface Revision {
@@ -70,7 +71,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
           value: metadata.name || '',
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
           options: {
-            status: ready.status(),
+            status: ready.statusCode(),
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),
@@ -213,7 +214,7 @@ export class PodListFactory implements ComponentFactory<any> {
       const row = {
         '_action': new GridActionsFactory({
           actions: [
-            deleteGridAction(pod),
+            deleteGridAction(<RuntimeObject>pod),
           ],
         }).toComponent(),
         'Name': new LinkFactory({

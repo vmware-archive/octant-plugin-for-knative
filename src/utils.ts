@@ -5,6 +5,7 @@
 
 import { V1ObjectReference } from "@kubernetes/client-node";
 import { ComponentFactory } from "./octant/component-factory";
+import { RuntimeObject } from "./metadata";
 
 export const ServingV1 = "serving.knative.dev/v1";
 export const ServingV1Service = "Service";
@@ -23,7 +24,7 @@ interface GridAction {
   type: string;
 }
 
-export function deleteGridAction(obj: any): GridAction {
+export function deleteGridAction(obj: RuntimeObject): GridAction {
   return {
     name: "Delete",
     actionPath: "action.octant.dev/deleteObject",

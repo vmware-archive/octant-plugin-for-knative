@@ -19,7 +19,7 @@ import { TimestampFactory } from "../octant/timestamp";
 
 import { RevisionListFactory, Revision } from "./revision";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Revision } from "../utils";
 
 // TODO fully fresh out
@@ -72,7 +72,7 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
           value: metadata.name || '',
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }),
           options: {
-            status: ready.status(),
+            status: ready.statusCode(),
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),

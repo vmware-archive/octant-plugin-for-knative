@@ -16,8 +16,13 @@ import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision } from "../utils";
+import { DashboardClient } from "../octant/plugin";
+import { ResourceViewerConfig } from "../octant/resource-viewer";
+import { KnativeResourceViewerFactory, Edge, Node } from "./resource-viewer";
+import { Configuration } from "./configuration";
+import { Revision } from "./revision";
 
 // TODO fully fresh out
 export interface Route {
@@ -33,6 +38,7 @@ export interface Route {
       url?: string;
     };
     url?: string;
+    traffic: TrafficPolicy[];
   };
 }
 
@@ -78,7 +84,7 @@ export class RouteListFactory implements ComponentFactory<any> {
           value: metadata.name || '',
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
           options: {
-            status: ready.status(),
+            status: ready.statusCode(),
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),
@@ -229,5 +235,82 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
     });
 
     return table.toComponent();
+  }
+}
+
+interface RouteDataPlaneViewerConfig {
+  route: Route;
+  dashboardClient: DashboardClient;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceViewerConfig> {
+  private readonly route: Route;
+  private readonly dashboardClient: DashboardClient;
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  private readonly nodes: {[key: string]: Node};
+  private readonly edges: {[key: string]: Edge[]};
+
+  constructor({ route, dashboardClient, linker, factoryMetadata }: RouteDataPlaneViewerConfig) {
+    this.route = route;
+    this.dashboardClient = dashboardClient;
+    this.linker = linker;
+    this.factoryMetadata = factoryMetadata;
+
+    this.nodes = {};
+    this.edges = {};
+  }
+
+  toComponent(): Component<ResourceViewerConfig> {
+    const rv = new KnativeResourceViewerFactory({ self: this.route, linker: this.linker, factoryMetadata: this.factoryMetadata });
+
+    // add service
+    rv.addNode(this.route);
+
+    const trafficPolicy = this.route.status.traffic.slice();
+    trafficPolicy.sort((a, b) => a.percent - b.percent);
+    for (const traffic of this.route.status.traffic) {
+      if (!traffic.percent) {
+        continue;
+      }
+
+      if (traffic.configurationName) {
+        try {
+          const configuration: Configuration = this.dashboardClient.Get({
+            apiVersion: ServingV1,
+            kind: ServingV1Configuration,
+            namespace: this.route.metadata.namespace,
+            name: traffic.configurationName,
+          });
+          rv.addEdge(this.route, configuration, "explicit");
+          const revision: Revision = this.dashboardClient.Get({
+            apiVersion: ServingV1,
+            kind: ServingV1Revision,
+            namespace: this.route.metadata.namespace,
+            name: configuration.status.latestCreatedRevisionName,
+          });
+          rv.addEdge(configuration, revision, "implicit");
+        } catch (e) {
+          // TODO handle notfound vs other errors
+        }
+      } else if (traffic.revisionName) {
+        try {
+          const revision: Revision = this.dashboardClient.Get({
+            apiVersion: ServingV1,
+            kind: ServingV1Revision,
+            namespace: this.route.metadata.namespace,
+            name: traffic.revisionName,
+          });
+          rv.addEdge(this.route, revision, "explicit");
+        } catch (e) {
+          // TODO handle notfound vs other errors
+        }
+      }
+    }
+    
+    return rv.toComponent();
   }
 }

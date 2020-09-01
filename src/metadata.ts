@@ -14,7 +14,9 @@ import { SummaryFactory } from "./octant/summary";
 import { TimestampFactory } from "./octant/timestamp";
 import { LinkFactory } from "./octant/link";
 
-interface RuntimeObject {
+export interface RuntimeObject {
+  apiVersion: string;
+  kind: string;
   metadata: V1ObjectMeta;
 }
 

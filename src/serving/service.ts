@@ -14,16 +14,20 @@ import { FlexLayoutFactory } from "../octant/flexlayout";
 import { GridActionsFactory } from "../octant/grid-actions";
 import { LinkFactory } from "../octant/link";
 import { ListFactory } from "../octant/list";
+import { ResourceViewerConfig } from "../octant/resource-viewer";
+import { SummaryFactory } from "../octant/summary";
 import { TableFactory } from '../octant/table';
 import { TextFactory } from "../octant/text";
 import { TimestampFactory } from "../octant/timestamp";
-import { SummaryFactory } from "../octant/summary";
 
 import { RevisionListFactory, Revision } from "./revision";
-import { TrafficPolicyTableFactory, TrafficPolicy } from "./route";
+import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "../conditions";
-import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision } from "../utils";
+import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
+import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
+import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route } from "../utils";
+import { DashboardClient } from "../octant/plugin";
+import { Configuration } from "./configuration";
 
 // TODO fully fresh out
 export interface Service {
@@ -42,6 +46,7 @@ export interface Service {
     };
     latestCreatedRevisionName?: string;
     latestReadyRevisionName?: string;
+    traffic: TrafficPolicy[];
   };
 }
 
@@ -155,7 +160,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
           // TODO manage internal links centrally
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
           options: {
-            status: ready.status(),
+            status: ready.statusCode(),
             statusDetail: ready.toComponent(),
           },
         }).toComponent(),
@@ -325,4 +330,100 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
     }).toComponent();
   }
 
+}
+
+interface ServiceResourceViewerParameters {
+  service: Service;
+  dashboardClient: DashboardClient;
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class ServiceResourceViewerFactory implements ComponentFactory<ResourceViewerConfig> {
+  private readonly service: Service;
+  private readonly dashboardClient: DashboardClient;
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  private readonly nodes: {[key: string]: Node};
+  private readonly edges: {[key: string]: Edge[]};
+
+  constructor({ service, dashboardClient, linker, factoryMetadata }: ServiceResourceViewerParameters) {
+    this.service = service;
+    this.dashboardClient = dashboardClient;
+    this.linker = linker;
+    this.factoryMetadata = factoryMetadata;
+
+    this.nodes = {};
+    this.edges = {};
+  }
+
+  toComponent(): Component<ResourceViewerConfig> {
+    const rv = new KnativeResourceViewerFactory({ self: this.service, linker: this.linker, factoryMetadata: this.factoryMetadata });
+
+    // add service
+    rv.addNode(this.service);
+
+    // add owners
+    for (const ownerReference of this.service.metadata.ownerReferences || []) {
+      try {
+        const owner = this.dashboardClient.Get({
+          apiVersion: ownerReference.apiVersion,
+          kind: ownerReference.kind,
+          namespace: this.service.metadata.namespace,
+          name: ownerReference.name,
+        });
+        rv.addEdge(this.service, owner, "explicit");
+      } catch (e) {
+        // TODO handle notfound vs other errors
+      }
+    }
+
+    // add child configuration
+    try {
+      const configurations: Configuration[] = this.dashboardClient.List({
+        apiVersion: ServingV1,
+        kind: ServingV1Configuration,
+        namespace: this.service.metadata.namespace,
+        selector: { "serving.knative.dev/service": this.service.metadata.name },
+      });
+      for (const configuration of configurations) {
+        rv.addEdge(this.service, configuration, "explicit");
+
+        // add child revisions
+        try {
+          const revisions: Revision[] = this.dashboardClient.List({
+            apiVersion: ServingV1,
+            kind: ServingV1Revision,
+            namespace: configuration.metadata.namespace,
+            selector: { "serving.knative.dev/configuration": configuration.metadata.name },
+          });
+          for (const revision of revisions) {
+            rv.addEdge(configuration, revision, "explicit");
+          }
+        } catch (e) {
+          // TODO handle notfound vs other errors
+        }
+      }
+    } catch (e) {
+      // TODO handle notfound vs other errors
+    }
+
+    // add child route
+    try {
+      const routes: Route[] = this.dashboardClient.List({
+        apiVersion: ServingV1,
+        kind: ServingV1Route,
+        namespace: this.service.metadata.namespace,
+        selector: { "serving.knative.dev/service": this.service.metadata.name },
+      });
+      for (const route of routes) {
+        rv.addEdge(this.service, route, "explicit");
+      }
+    } catch (e) {
+      // TODO handle notfound vs other errors
+    }
+
+    return rv.toComponent();
+  }
 }

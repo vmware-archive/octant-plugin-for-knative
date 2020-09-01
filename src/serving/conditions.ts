@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Component } from "./octant/component";
-import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
-import { TextFactory } from "./octant/text";
+import { Component } from "../octant/component";
+import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
+import { TextFactory } from "../octant/text";
 
 export interface Condition {
   status?: ConditionStatus;
@@ -34,6 +34,30 @@ export class ConditionSummaryFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
+    return new TextFactory({ value: this.statusText() }).toComponent();
+  }
+
+  statusCode(): number {
+    if (this.condition?.status === ConditionStatus.True) {
+      return 1;
+    } else if (this.condition?.status == ConditionStatus.False) {
+      return 3;
+    } else {
+      return 2;
+    }
+  }
+
+  statusRV(): string {
+    if (this.condition?.status === ConditionStatus.True) {
+      return "ok";
+    } else if (this.condition?.status == ConditionStatus.False) {
+      return "error";
+    } else {
+      return "warning";
+    }
+  }
+
+  statusText(): string {
     let value = ConditionStatus.Unknown as string;
 
     if (this.condition?.status === ConditionStatus.True) {
@@ -45,17 +69,7 @@ export class ConditionSummaryFactory implements ComponentFactory<any> {
       value = `${value} - ${this.condition?.reason}`;
     }
 
-    return new TextFactory({ value }).toComponent();
-  }
-
-  status(): number {
-    if (this.condition?.status === ConditionStatus.True) {
-      return 1;
-    } else if (this.condition?.status == ConditionStatus.False) {
-      return 3;
-    } else {
-      return 2;
-    }
+    return value;
   }
 }
 
