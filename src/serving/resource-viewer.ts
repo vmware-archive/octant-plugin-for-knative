@@ -6,11 +6,11 @@
 import { V1ObjectReference } from "@kubernetes/client-node";
 
 // components
-import { Component } from "../octant/component";
-import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
-import { LinkFactory, LinkConfig } from "../octant/link";
-import { ResourceViewerFactory, ResourceViewerConfig } from "../octant/resource-viewer";
-import { TextFactory } from "../octant/text";
+import { Component } from "@project-octant/plugin/components/component";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { LinkFactory, LinkConfig } from "@project-octant/plugin/components/link";
+import { ResourceViewerFactory, ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
+import { TextFactory } from "@project-octant/plugin/components/text";
 
 import { ConditionSummaryFactory } from "./conditions";
 import { RuntimeObject } from "../metadata";

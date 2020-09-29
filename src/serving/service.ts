@@ -7,18 +7,18 @@ import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/
 import YAML from "yaml";
 
 // components
-import { ButtonGroupFactory } from "../octant/button-group";
-import { Component } from "../octant/component";
-import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
-import { FlexLayoutFactory } from "../octant/flexlayout";
-import { GridActionsFactory } from "../octant/grid-actions";
-import { LinkFactory } from "../octant/link";
-import { ListFactory } from "../octant/list";
-import { ResourceViewerConfig } from "../octant/resource-viewer";
-import { SummaryFactory } from "../octant/summary";
-import { TableFactory } from '../octant/table';
-import { TextFactory } from "../octant/text";
-import { TimestampFactory } from "../octant/timestamp";
+import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
+import { Component } from "@project-octant/plugin/components/component";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
+import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
+import { LinkFactory } from "@project-octant/plugin/components/link";
+import { ListFactory } from "@project-octant/plugin/components/list";
+import { ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
+import { SummaryFactory } from "@project-octant/plugin/components/summary";
+import { TableFactory } from '@project-octant/plugin/components/table';
+import { TextFactory } from "@project-octant/plugin/components/text";
+import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { RevisionListFactory, Revision } from "./revision";
 import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
@@ -26,7 +26,7 @@ import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
 import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
 import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route } from "../utils";
-import { DashboardClient } from "../octant/plugin";
+import { DashboardClient } from "../utils";
 import { Configuration } from "./configuration";
 
 // TODO fully fresh out

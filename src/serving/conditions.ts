@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Component } from "../octant/component";
-import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
-import { TextFactory } from "../octant/text";
+import { Component } from "@project-octant/plugin/components/component";
+import { ComponentFactory } from "@project-octant/plugin/components/component-factory";
+import { TextFactory } from "@project-octant/plugin/components/text";
 
 export interface Condition {
   status?: ConditionStatus;

@@ -13,19 +13,19 @@ import YAML from "yaml";
 
 // plugin contains interfaces your plugin can expect
 // this includes your main plugin class, response, requests, and clients.
-import * as octant from "./octant/plugin";
+import * as octant from "@project-octant/plugin";
 
 // helpers for generating the
 // objects that Octant can render to components.
-import * as h from "./octant/component-helpers";
+import * as h from "@project-octant/plugin/helpers";
 
 // components
-import { ButtonGroupFactory } from "./octant/button-group";
-import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
-import { EditorFactory } from "./octant/editor";
-import { TextFactory } from "./octant/text";
-import { LinkFactory } from "./octant/link";
-import { ListFactory } from "./octant/list";
+import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { EditorFactory } from "@project-octant/plugin/components/editor";
+import { TextFactory } from "@project-octant/plugin/components/text";
+import { LinkFactory } from "@project-octant/plugin/components/link";
+import { ListFactory } from "@project-octant/plugin/components/list";
 
 import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
 import { Revision, RevisionSummaryFactory } from "./serving/revision";
@@ -36,6 +36,7 @@ import { MetadataSummaryFactory } from "./metadata";
 import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
 import { V1Pod, V1ObjectReference } from "@kubernetes/client-node";
 import { notFoundContentResponse } from "./not-found";
+import { DashboardClient } from "./utils";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -46,7 +47,7 @@ export default class MyPlugin implements octant.Plugin {
   isModule = true;
 
   // Octant will assign these via the constructor at runtime.
-  dashboardClient: octant.DashboardClient;
+  dashboardClient: DashboardClient;
   httpClient: octant.HTTPClient;
   router: RouteRecognizer;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
@@ -69,7 +70,7 @@ export default class MyPlugin implements octant.Plugin {
 
   // Octant expects plugin constructors to accept two arguments, the dashboardClient and the httpClient
   constructor(
-    dashboardClient: octant.DashboardClient,
+    dashboardClient: DashboardClient,
     httpClient: octant.HTTPClient
   ) {
     this.dashboardClient = dashboardClient;
