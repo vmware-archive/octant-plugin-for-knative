@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import * as octant from "@project-octant/plugin";
+
 import { V1ObjectReference } from "@kubernetes/client-node";
-import { ComponentFactory } from "./octant/component-factory";
+import { ObjectStatusResponse } from "@project-octant/plugin";
 import { RuntimeObject } from "./metadata";
 
 export const ServingV1 = "serving.knative.dev/v1";
@@ -12,6 +14,11 @@ export const ServingV1Service = "Service";
 export const ServingV1Configuration = "Configuration";
 export const ServingV1Revision = "Revision";
 export const ServingV1Route = "Route";
+
+// TODO remove after https://github.com/vmware-tanzu/plugin-library-for-octant/issues/2
+export interface DashboardClient extends octant.DashboardClient {
+  SendEvent(clientID: string, eventType: string, payload: any): string; 
+}
 
 interface GridAction {
   name: string;
@@ -42,9 +49,9 @@ export function deleteGridAction(obj: RuntimeObject): GridAction {
   };
 }
 
-export function knativeLinker(linker: (ref: V1ObjectReference) => string, ref: V1ObjectReference, context?: V1ObjectReference): string {
+export function knativeLinker(linker: (ref: octant.Ref) => string, ref: V1ObjectReference, context?: V1ObjectReference): string {
   if (!ref.apiVersion?.startsWith("serving.knative.dev/")) {
-    return linker(ref);
+    return linker(ref as octant.Ref);
   }
   return [context, ref].reduce((contentPath: string, ref: V1ObjectReference | undefined) => {
     if (!ref) {

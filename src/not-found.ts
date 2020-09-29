@@ -3,20 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// plugin contains interfaces your plugin can expect
+// this includes your main plugin class, response, requests, and clients.
+import * as octant from "@project-octant/plugin";
+
 // helpers for generating the
 // objects that Octant can render to components.
-import * as h from "./octant/component-helpers";
+import { createContentResponse } from "@project-octant/plugin/helpers";
 
 // components
-import { ContentResponse } from "./octant/plugin";
-import { ListFactory } from "./octant/list";
-import { TextFactory } from "./octant/text";
+import { ListFactory } from "@project-octant/plugin/components/list";
+import { TextFactory } from "@project-octant/plugin/components/text";
 
 interface NotFoundParameters {
   contentPath: string;
 }
 
-export function notFoundContentResponse({ contentPath }: NotFoundParameters): ContentResponse {
+export function notFoundContentResponse({ contentPath }: NotFoundParameters): octant.ContentResponse {
   if (contentPath.endsWith('/')) {
     contentPath = contentPath.slice(0, -1);
   }
@@ -45,5 +48,5 @@ You can:
     },
   });
 
-  return h.createContentResponse([title], [body]);
+  return createContentResponse([title], [body]);
 };

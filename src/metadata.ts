@@ -6,13 +6,13 @@
 import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node";
 
 // components
-import { AnnotationsFactory } from "./octant/annotations";
-import { Component } from "./octant/component";
-import { ComponentFactory, FactoryMetadata } from "./octant/component-factory";
-import { LabelsFactory } from "./octant/labels";
-import { SummaryFactory } from "./octant/summary";
-import { TimestampFactory } from "./octant/timestamp";
-import { LinkFactory } from "./octant/link";
+import { AnnotationsFactory } from "@project-octant/plugin/components/annotations";
+import { Component } from "@project-octant/plugin/components/component";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { LabelsFactory } from "@project-octant/plugin/components/labels";
+import { SummaryFactory } from "@project-octant/plugin/components/summary";
+import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
+import { LinkFactory } from "@project-octant/plugin/components/link";
 
 export interface RuntimeObject {
   apiVersion: string;

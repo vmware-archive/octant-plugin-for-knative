@@ -7,15 +7,15 @@ import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/
 import YAML from "yaml";
 
 // components
-import { Component } from "../octant/component";
-import { ComponentFactory, FactoryMetadata } from "../octant/component-factory";
-import { FlexLayoutFactory } from "../octant/flexlayout";
-import { GridActionsFactory } from "../octant/grid-actions";
-import { LinkFactory } from "../octant/link";
-import { SummaryFactory } from "../octant/summary";
-import { TableFactory } from '../octant/table';
-import { TextFactory } from "../octant/text";
-import { TimestampFactory } from "../octant/timestamp";
+import { Component } from "@project-octant/plugin/components/component";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
+import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
+import { LinkFactory } from "@project-octant/plugin/components/link";
+import { SummaryFactory } from "@project-octant/plugin/components/summary";
+import { TableFactory } from '@project-octant/plugin/components/table';
+import { TextFactory } from "@project-octant/plugin/components/text";
+import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { RevisionListFactory, Revision } from "./revision";
 
