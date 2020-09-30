@@ -5,6 +5,10 @@
 
 import { V1ObjectMeta, V1PodSpec, V1Pod, V1ObjectReference } from "@kubernetes/client-node";
 
+// helpers for generating the
+// objects that Octant can render to components.
+import * as h from "@project-octant/plugin/helpers";
+
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
@@ -12,7 +16,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
-import { TableFactory } from '@project-octant/plugin/components/table';
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
@@ -54,56 +57,56 @@ export class RevisionListFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.revisions.map(revision => {
+    const columns = {
+      name: 'Name',
+      generation: 'Generation',
+      age: 'Age',
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.name,
+      columns.generation,
+      columns.age,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no revisions!";
+    // TODO add filters
+    // table.filters = ...;
+
+    const notFound = new TextFactory({ value: '<not found>' });
+    for (const revision of this.revisions) {
       const { metadata, spec, status } = revision;
-      
+
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
-      let notFound = new TextFactory({ value: '<not found>' }).toComponent();
+      const row = new h.TableRow(
+        {
+          [columns.name]: new LinkFactory({
+            value: metadata.name || '',
+            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
+            options: {
+              status: ready.statusCode(),
+              statusDetail: ready.toComponent(),
+            },
+          }),
+          [columns.generation]: (metadata.labels || {})['serving.knative.dev/configurationGeneration']
+            ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] })
+            : notFound,
+          [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
+        },
+        {
+          isDeleting: !!metadata?.deletionTimestamp,
+          gridActions: new GridActionsFactory({
+            actions: [
+              deleteGridAction(revision),
+            ]
+          })
+        }
+      );    
+      table.push(row);   
+    }
 
-      const row = {
-        '_action': new GridActionsFactory({
-          actions: [
-            deleteGridAction(revision),
-          ],
-        }).toComponent(),
-        'Name': new LinkFactory({
-          value: metadata.name || '',
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
-          options: {
-            status: ready.statusCode(),
-            statusDetail: ready.toComponent(),
-          },
-        }).toComponent(),
-        'Generation': (metadata.labels || {})['serving.knative.dev/configurationGeneration']
-          ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] }).toComponent()
-          : notFound,
-        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      } as { [key: string]: Component<any> };
-
-      if (metadata?.deletionTimestamp) {
-        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
-      }
-
-      return row;
-    });
-
-    let columns = [
-      'Name',
-      'Generation',
-      'Age',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no revisions!",
-      loading: false,
-      filters: {},
-      factoryMetadata: this.factoryMetadata,
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }
 
@@ -129,9 +132,9 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: 12 },
-            { view: this.toStatusComponent(), width: 12 },
-            { view: this.toPodListComponent(), width: 24 },
+            { view: this.toSpecComponent(), width: h.Width.Half },
+            { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toPodListComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -200,9 +203,24 @@ export class PodListFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.pods.map(pod => {
+    const columns = {
+      name: 'Name',
+      age: 'Age',
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.name,
+      columns.age,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no pods!";
+    // TODO add filters
+    // table.filters = ...;
+
+    const notFound = new TextFactory({ value: '<not found>' });
+    for (const pod of this.pods) {
       const { metadata, spec, status } = pod;
-      
+
       let readyStatus = 2;
       if (status?.phase === "Running") {
         readyStatus = 1;
@@ -211,44 +229,30 @@ export class PodListFactory implements ComponentFactory<any> {
       }
       const readyStatusDetail = new TextFactory({ value: status?.message || "Unknown" }).toComponent();
 
-      const row = {
-        '_action': new GridActionsFactory({
-          actions: [
-            deleteGridAction(<RuntimeObject>pod),
-          ],
-        }).toComponent(),
-        'Name': new LinkFactory({
-          value: metadata?.name || '',
-          ref: `/overview/namespace/${metadata?.namespace}/workloads/pods/${metadata?.name}`,
-          options: {
-            status: readyStatus,
-            statusDetail: readyStatusDetail,
+      const row = new h.TableRow(
+        {
+          [columns.name]: new LinkFactory({
+            value: metadata?.name || '',
+            ref: `/overview/namespace/${metadata?.namespace}/workloads/pods/${metadata?.name}`,
+            options: {
+              status: readyStatus,
+              statusDetail: readyStatusDetail,
+            },
+          }),
+          [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata?.creationTimestamp || 0).getTime() / 1000) }),
           },
-        }).toComponent(),
-        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata?.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      } as { [key: string]: Component<any> };
+        {
+          isDeleting: !!metadata?.deletionTimestamp,
+          gridActions: new GridActionsFactory({
+            actions: [
+              deleteGridAction(pod as RuntimeObject),
+            ]
+          }),
+        }
+      );    
+      table.push(row);
+    }
 
-      if (metadata?.deletionTimestamp) {
-        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
-      }
-
-      return row;
-    });
-
-    let columns = [
-      'Name',
-      'Age',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no pods!",
-      loading: false,
-      filters: {},
-      factoryMetadata: this.factoryMetadata,
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }

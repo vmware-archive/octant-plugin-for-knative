@@ -5,6 +5,10 @@
 
 import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node";
 
+// helpers for generating the
+// objects that Octant can render to components.
+import * as h from "@project-octant/plugin/helpers";
+
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
@@ -12,7 +16,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
-import { TableFactory } from '@project-octant/plugin/components/table';
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
@@ -67,56 +70,56 @@ export class RouteListFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.routes.map(route => {
+    const columns = {
+      name: 'Name',
+      url: 'URL',
+      age: 'Age',
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.name,
+      columns.url,
+      columns.age,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no routes!";
+    // TODO add filters
+    // table.filters = ...;
+
+    const notFound = new TextFactory({ value: '<not found>' });
+    for (const route of this.routes) {
       const { metadata, spec, status } = route;
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
-      let notFound = new TextFactory({ value: '<not found>' }).toComponent();
+      const row = new h.TableRow(
+        {
+          [columns.name]: new LinkFactory({
+            value: metadata.name || '',
+            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
+            options: {
+              status: ready.statusCode(),
+              statusDetail: ready.toComponent(),
+            },
+          }),
+          [columns.url]: status.url
+            ? new LinkFactory({ value: status.url, ref: status.url })
+            : notFound,
+          [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
+        },
+        {
+          isDeleting: !!metadata?.deletionTimestamp,
+          gridActions: new GridActionsFactory({
+            actions: [
+              deleteGridAction(route),
+            ]
+          }),
+        }
+      );    
+      table.push(row);   
+    }
 
-      const row = {
-        '_action': new GridActionsFactory({
-          actions: [
-            deleteGridAction(route),
-          ],
-        }).toComponent(),
-        'Name': new LinkFactory({
-          value: metadata.name || '',
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
-          options: {
-            status: ready.statusCode(),
-            statusDetail: ready.toComponent(),
-          },
-        }).toComponent(),
-        'URL': status.url
-          ? new LinkFactory({ value: status.url, ref: status.url }).toComponent()
-          : notFound,
-        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      } as { [key: string]: Component<any> };
-
-      if (metadata?.deletionTimestamp) {
-        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
-      }
-
-      return row;
-    });
-
-    let columns = [
-      'Name',
-      'URL',
-      'Age',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no routes!",
-      loading: false,
-      filters: {},
-      factoryMetadata: this.factoryMetadata,
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }
 
@@ -142,8 +145,8 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: 12 },
-            { view: this.toStatusComponent(), width: 12 },
+            { view: this.toSpecComponent(), width: h.Width.Half },
+            { view: this.toStatusComponent(), width: h.Width.Half },
           ],
         ],
       },
@@ -191,8 +194,24 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.trafficPolicy.map(tp => {
+    const columns = {
+      name: 'Name',
+      type: 'Type',
+      percent: 'Percent',
+    };
+    const table = new h.TableFactoryBuilder([], []);
+    table.title = [new TextFactory({ value: "Traffic Policy" })];
+    table.columns = [
+      columns.name,
+      columns.type,
+      columns.percent,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no traffic rules!";
+    // TODO add filters
+    // table.filters = ...;
 
+    for (const tp of this.trafficPolicy) {
       let type = 'Latest Revision';
       let name: ComponentFactory<any> = new TextFactory({ value: 'n/a' });
       if (tp.configurationName) {
@@ -209,32 +228,17 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       }
+      const row = new h.TableRow(
+        {
+          [columns.name]: name,
+          [columns.type]: new TextFactory({ value: type }),
+          [columns.percent]: new TextFactory({ value: `${tp.percent}%` }),
+        },
+      );    
+      table.push(row);
+    }
 
-      return {
-        'Name': name.toComponent(),
-        'Type': new TextFactory({ value: type }).toComponent(),
-        'Percent': new TextFactory({ value: `${tp.percent}%` }).toComponent(),
-      };
-    });
-
-    let columns = [
-      'Name',
-      'Type',
-      'Percent',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no traffic rules!",
-      loading: false,
-      filters: {},
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Traffic Policy" }).toComponent()],
-      },
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }
 

@@ -6,6 +6,10 @@
 import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/client-node";
 import YAML from "yaml";
 
+// helpers for generating the
+// objects that Octant can render to components.
+import * as h from "@project-octant/plugin/helpers";
+
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
@@ -13,7 +17,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
-import { TableFactory } from '@project-octant/plugin/components/table';
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
@@ -55,60 +58,61 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.configurations.map(configuration => {
+    const columns = {
+      name: 'Name',
+      latestCreated: 'Latest Created',
+      latestReady: 'Latest Ready',
+      age: 'Age',
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.name,
+      columns.latestCreated,
+      columns.latestReady,
+      columns.age,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no configurations!";
+    // TODO add filters
+    // table.filters = ...;
+
+    const notFound = new TextFactory({ value: '<not found>' });
+    for (const configuration of this.configurations) {
       const { metadata, spec, status } = configuration;
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
-      let notFound = new TextFactory({ value: '<not found>' }).toComponent();
+      const row = new h.TableRow(
+        {
+          [columns.name]: new LinkFactory({
+            value: metadata.name || '',
+            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }),
+            options: {
+              status: ready.statusCode(),
+              statusDetail: ready.toComponent(),
+            },
+          }),
+          [columns.latestCreated]: status.latestCreatedRevisionName
+            ? new TextFactory({ value: status.latestCreatedRevisionName })
+            : notFound,
+          [columns.latestReady]: status.latestReadyRevisionName
+            ? new TextFactory({ value: status.latestReadyRevisionName })
+            : notFound,
+          [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
+        },
+        {
+          isDeleting: !!metadata?.deletionTimestamp,
+          gridActions: new GridActionsFactory({
+            actions: [
+              deleteGridAction(configuration),
+            ]
+          }),
+        }
+      );    
+      table.push(row);   
+    }
 
-      const row = {
-        '_action': new GridActionsFactory({
-          actions: [
-            deleteGridAction(configuration),
-          ],
-        }).toComponent(),
-        'Name': new LinkFactory({
-          value: metadata.name || '',
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }),
-          options: {
-            status: ready.statusCode(),
-            statusDetail: ready.toComponent(),
-          },
-        }).toComponent(),
-        'Latest Created': status.latestCreatedRevisionName
-          ? new TextFactory({ value: status.latestCreatedRevisionName }).toComponent()
-          : notFound,
-        'Latest Ready': status.latestReadyRevisionName
-          ? new TextFactory({ value: status.latestReadyRevisionName }).toComponent()
-          : notFound,
-        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      } as { [key: string]: Component<any> };
-
-      if (metadata?.deletionTimestamp) {
-        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
-      }
-
-      return row;
-    });
-
-    let columns = [
-      'Name',
-      'Latest Created',
-      'Latest Ready',
-      'Age',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no configurations!",
-      loading: false,
-      filters: {},
-      factoryMetadata: this.factoryMetadata,
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }
 
@@ -137,9 +141,9 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: 12 },
-            { view: this.toStatusComponent(), width: 12 },
-            { view: this.toRevisionListComponent(), width: 24 },
+            { view: this.toSpecComponent(), width: h.Width.Half },
+            { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toRevisionListComponent(), width: h.Width.Full },
           ],
         ],
       },
