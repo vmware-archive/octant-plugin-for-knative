@@ -6,6 +6,10 @@
 import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/client-node";
 import YAML from "yaml";
 
+// helpers for generating the
+// objects that Octant can render to components.
+import * as h from "@project-octant/plugin/helpers";
+
 // components
 import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
 import { Component } from "@project-octant/plugin/components/component";
@@ -16,7 +20,6 @@ import { LinkFactory } from "@project-octant/plugin/components/link";
 import { ListFactory } from "@project-octant/plugin/components/list";
 import { ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
-import { TableFactory } from '@project-octant/plugin/components/table';
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
@@ -142,66 +145,68 @@ export class ServiceListFactory implements ComponentFactory<any> {
   }
   
   toComponent(): Component<any> {
-    let rows = this.services.map(service => {
+    const columns = {
+      name: 'Name',
+      url: 'URL',
+      latestCreated: 'Latest Created',
+      latestReady: 'Latest Ready',
+      age: 'Age',
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.name,
+      columns.url,
+      columns.latestCreated,
+      columns.latestReady,
+      columns.age,
+    ];
+    table.loading = false;
+    table.emptyContent = "There are no services!";
+    // TODO restore buttonGroup once available upstream
+    // table.buttonGroup = this.buttonGroup;
+    // TODO add filters
+    // table.filters = ...;
+
+    const notFound = new TextFactory({ value: '<not found>' });
+    for (const service of this.services) {
       const { metadata, spec, status } = service;
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
-      let notFound = new TextFactory({ value: '<not found>' }).toComponent();
+      const row = new h.TableRow(
+        {
+          [columns.name]: new LinkFactory({
+            value: metadata.name || '',
+            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
+            options: {
+              status: ready.statusCode(),
+              statusDetail: ready.toComponent(),
+            },
+          }),
+          [columns.url]: status.url
+            ? new LinkFactory({ value: status.url, ref: status.url })
+            : notFound,
+          [columns.latestCreated]: status.latestCreatedRevisionName
+            ? new TextFactory({ value: status.latestCreatedRevisionName })
+            : notFound,
+          [columns.latestReady]: status.latestReadyRevisionName
+            ? new TextFactory({ value: status.latestReadyRevisionName })
+            : notFound,
+          [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
+        },
+        {
+          isDeleting: !!metadata?.deletionTimestamp,
+          gridActions: new GridActionsFactory({
+            actions: [
+              deleteGridAction(service),
+            ]
+          }),
+        }
+      );
+      table.push(row);
+    }
 
-      const row = {
-        '_action': new GridActionsFactory({
-          actions: [
-            deleteGridAction(service),
-          ],
-        }).toComponent(),
-        'Name': new LinkFactory({
-          value: metadata.name || '',
-          // TODO manage internal links centrally
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
-          options: {
-            status: ready.statusCode(),
-            statusDetail: ready.toComponent(),
-          },
-        }).toComponent(),
-        'URL': status.url
-          ? new LinkFactory({ value: status.url, ref: status.url }).toComponent()
-          : notFound,
-        'Latest Created': status.latestCreatedRevisionName
-          ? new TextFactory({ value: status.latestCreatedRevisionName }).toComponent()
-          : notFound,
-        'Latest Ready': status.latestReadyRevisionName
-          ? new TextFactory({ value: status.latestReadyRevisionName }).toComponent()
-          : notFound,
-        'Age': new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }).toComponent(),
-      } as { [key: string]: Component<any> };
-
-      if (metadata?.deletionTimestamp) {
-        row['_isDeleted'] = new TextFactory({ value: "deleted" }).toComponent();
-      }
-
-      return row;
-    });
-
-    let columns = [
-      'Name',
-      'URL',
-      'Latest Created',
-      'Latest Ready',
-      'Age',
-    ].map(name => ({ name, accessor: name }));
-
-    let table = new TableFactory({
-      columns,
-      rows,
-      emptyContent: "There are no services!",
-      loading: false,
-      filters: {},
-      ...(this.buttonGroup && { buttonGroup: this.buttonGroup }),
-      factoryMetadata: this.factoryMetadata,
-    });
-
-    return table.toComponent();
+    return table.getFactory().toComponent();
   }
 }
 
@@ -230,10 +235,10 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: 12 },
-            { view: this.toStatusComponent(), width: 12 },
-            { view: this.toTrafficPolicyComponent(), width: 12 },
-            { view: this.toRevisionListComponent(), width: 12 },
+            { view: this.toSpecComponent(), width: h.Width.Half },
+            { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toTrafficPolicyComponent(), width: h.Width.Half },
+            { view: this.toRevisionListComponent(), width: h.Width.Half },
           ],
         ],
       },
