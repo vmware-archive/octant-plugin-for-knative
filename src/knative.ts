@@ -33,7 +33,7 @@ import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory, 
 
 import { MetadataSummaryFactory } from "./metadata";
 import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
-import { V1Pod, V1ObjectReference } from "@kubernetes/client-node";
+import { V1Pod, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
 import { notFoundContentResponse } from "./not-found";
 import { DashboardClient, EditorFactory } from "./utils";
 
@@ -598,11 +598,26 @@ export default class MyPlugin implements octant.Plugin {
       const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
       return parseInt(generationB) - parseInt(generationA)
     });
+    const childDeployments = revisions.reduce((childDeployments, revision) => {
+      const deployments = this.dashboardClient.List({
+        apiVersion: 'apps/v1',
+        kind: 'Deployment',
+        namespace: revision.metadata.namespace || '',
+        labelSelector: {
+          matchLabels: {
+            'serving.knative.dev/revision': revision.metadata.name || '_',
+          },
+        },
+      });
+      childDeployments[revision.metadata.uid || ''] = deployments[0];
+      return childDeployments;
+    }, {} as {[key: string]: V1Deployment});
 
     return [
       new ServiceSummaryFactory({
         service,
         revisions,
+        childDeployments,
         linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
@@ -684,11 +699,26 @@ export default class MyPlugin implements octant.Plugin {
       const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
       return parseInt(generationB) - parseInt(generationA)
     });
+    const childDeployments = revisions.reduce((childDeployments, revision) => {
+      const deployments = this.dashboardClient.List({
+        apiVersion: 'apps/v1',
+        kind: 'Deployment',
+        namespace: revision.metadata.namespace || '',
+        labelSelector: {
+          matchLabels: {
+            'serving.knative.dev/revision': revision.metadata.name || '_',
+          },
+        },
+      });
+      childDeployments[revision.metadata.uid || ''] = deployments[0];
+      return childDeployments;
+    }, {} as {[key: string]: V1Deployment});
 
     return [
       new ConfigurationSummaryFactory({
         configuration,
         revisions,
+        childDeployments,
         linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
@@ -728,6 +758,16 @@ export default class MyPlugin implements octant.Plugin {
       namespace: this.namespace,
       name: name,
     });
+    const childDeployment: V1Deployment | undefined = this.dashboardClient.List({
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      namespace: revision.metadata.namespace || '',
+      labelSelector: {
+        matchLabels: {
+          'serving.knative.dev/revision': revision.metadata.name || '_',
+        },
+      },
+    })[0];
     const pods: V1Pod[] = this.dashboardClient.List({
       apiVersion: 'v1',
       kind: 'Pod',
@@ -741,6 +781,7 @@ export default class MyPlugin implements octant.Plugin {
     return [
       new RevisionSummaryFactory({
         revision,
+        childDeployment,
         pods,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
