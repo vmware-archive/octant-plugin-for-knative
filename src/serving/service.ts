@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference } from "@kubernetes/client-node";
+import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
 import YAML from "yaml";
 
 // helpers for generating the
@@ -212,6 +212,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
 interface ServiceDetailParameters {
   service: Service;
   revisions: Revision[];
+  childDeployments?: {[key: string]: V1Deployment};
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
@@ -219,12 +220,14 @@ interface ServiceDetailParameters {
 export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly service: Service;
   private readonly revisions: Revision[];
+  private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ service, revisions, linker, factoryMetadata }: ServiceDetailParameters) {
+  constructor({ service, revisions, childDeployments, linker, factoryMetadata }: ServiceDetailParameters) {
     this.service = service;
     this.revisions = revisions;
+    this.childDeployments = childDeployments;
     this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
@@ -326,6 +329,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
+      childDeployments: this.childDeployments,
       context: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
       linker: this.linker,
       factoryMetadata: {

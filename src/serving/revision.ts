@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodSpec, V1Pod, V1ObjectReference } from "@kubernetes/client-node";
+import { V1ObjectMeta, V1PodSpec, V1Pod, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
 
 // helpers for generating the
 // objects that Octant can render to components.
@@ -38,6 +38,7 @@ export interface Revision {
 
 interface RevisionListParameters {
   revisions: Revision[];
+  childDeployments?: {[key: string]: V1Deployment};
   context: V1ObjectReference;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
@@ -45,12 +46,14 @@ interface RevisionListParameters {
 
 export class RevisionListFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
+  private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly context: V1ObjectReference;
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revisions, context, linker, factoryMetadata }: RevisionListParameters) {
+  constructor({ revisions, childDeployments, context, linker, factoryMetadata }: RevisionListParameters) {
     this.revisions = revisions;
+    this.childDeployments = childDeployments
     this.context = context;
     this.linker = linker
     this.factoryMetadata = factoryMetadata;
@@ -60,10 +63,16 @@ export class RevisionListFactory implements ComponentFactory<any> {
     const columns = {
       name: 'Name',
       generation: 'Generation',
+      replicas: 'Replicas',
       age: 'Age',
     };
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
-    table.columns = [
+    table.columns = this.childDeployments ? [
+      columns.name,
+      columns.generation,
+      columns.replicas,
+      columns.age,
+    ] : [
       columns.name,
       columns.generation,
       columns.age,
@@ -102,7 +111,17 @@ export class RevisionListFactory implements ComponentFactory<any> {
             ]
           })
         }
-      );    
+      );
+
+      if (this.childDeployments && revision.metadata.uid && this.childDeployments[revision.metadata.uid]) {
+        const d = this.childDeployments[revision.metadata.uid];
+        const available = d.status?.availableReplicas || 0;
+        const total = available + (d.status?.unavailableReplicas || 0);
+        row.data[columns.replicas] = new TextFactory({ value: `${available}/${total}` });
+      } else {
+        row.data[columns.replicas] = new TextFactory({ value: "unknown" });
+      }
+
       table.push(row);   
     }
 
@@ -112,17 +131,20 @@ export class RevisionListFactory implements ComponentFactory<any> {
 
 interface RevisionDetailParameters {
   revision: Revision;
+  childDeployment?: V1Deployment;
   pods: V1Pod[];
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RevisionSummaryFactory implements ComponentFactory<any> {
   private readonly revision: Revision;
+  private readonly childDeployment?: V1Deployment;
   private readonly pods: V1Pod[];
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revision, pods, factoryMetadata }: RevisionDetailParameters) {
+  constructor({ revision, childDeployment, pods, factoryMetadata }: RevisionDetailParameters) {
     this.revision = revision;
+    this.childDeployment = childDeployment;
     this.pods = pods;
     this.factoryMetadata = factoryMetadata;
   }
@@ -178,10 +200,13 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
   }
 
   toPodListComponent(): Component<any> {
+    const available = this.childDeployment?.status?.availableReplicas || 0;
+    const total = available + (this.childDeployment?.status?.unavailableReplicas || 0);
+
     return new PodListFactory({
       pods: this.pods,
       factoryMetadata: {
-        title: [new TextFactory({ value: "Pods" }).toComponent()],
+        title: [new TextFactory({ value: this.childDeployment ? `Pods: ${available}/${total}` : 'Pods' }).toComponent()],
       },
     }).toComponent();
   }
