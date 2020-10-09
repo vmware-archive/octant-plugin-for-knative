@@ -64,5 +64,5 @@ export function knativeLinker(linker: (ref: octant.Ref) => string, ref: V1Object
       contentPath = `${contentPath}/${ref.name}`;
     }
     return contentPath;
-  }, "/knative");
+  }, "/knative/serving");
 }
