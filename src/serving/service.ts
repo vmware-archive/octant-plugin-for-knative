@@ -28,7 +28,7 @@ import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
 
 import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
 import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
-import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route } from "../utils";
+import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route, TableFactoryBuilder } from "../utils";
 import { DashboardClient } from "../utils";
 import { Configuration } from "./configuration";
 
@@ -152,7 +152,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
       latestReady: 'Latest Ready',
       age: 'Age',
     };
-    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    const table = new TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
     table.columns = [
       columns.name,
       columns.url,
@@ -162,8 +162,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
     ];
     table.loading = false;
     table.emptyContent = "There are no services!";
-    // TODO restore buttonGroup once available upstream
-    // table.buttonGroup = this.buttonGroup;
+    table.buttonGroup = this.buttonGroup;
     // TODO add filters
     // table.filters = ...;
 

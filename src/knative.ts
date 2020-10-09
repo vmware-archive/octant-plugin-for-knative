@@ -22,7 +22,6 @@ import * as h from "@project-octant/plugin/helpers";
 // components
 import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
-import { EditorFactory } from "@project-octant/plugin/components/editor";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { ListFactory } from "@project-octant/plugin/components/list";
@@ -36,7 +35,7 @@ import { MetadataSummaryFactory } from "./metadata";
 import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
 import { V1Pod, V1ObjectReference } from "@kubernetes/client-node";
 import { notFoundContentResponse } from "./not-found";
-import { DashboardClient } from "./utils";
+import { DashboardClient, EditorFactory } from "./utils";
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -638,6 +637,7 @@ export default class MyPlugin implements octant.Plugin {
       }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(service)), { sortMapEntries: true }),
+        language: 'yaml',
         readOnly: false,
         metadata: {
           apiVersion: service.apiVersion,
@@ -705,6 +705,7 @@ export default class MyPlugin implements octant.Plugin {
       }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(configuration)), { sortMapEntries: true }),
+        language: 'yaml',
         readOnly: false,
         metadata: {
           apiVersion: configuration.apiVersion,
@@ -756,6 +757,7 @@ export default class MyPlugin implements octant.Plugin {
       }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(revision)), { sortMapEntries: true }),
+        language: 'yaml',
         readOnly: false,
         metadata: {
           apiVersion: revision.apiVersion,
@@ -818,6 +820,7 @@ export default class MyPlugin implements octant.Plugin {
       }),
       new EditorFactory({
         value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(route)), { sortMapEntries: true }),
+        language: 'yaml',
         readOnly: false,
         metadata: {
           apiVersion: route.apiVersion,

@@ -8,7 +8,7 @@ After installing, Octant will automatically detect the new plugin and add a 'Kna
 ## Try it out
 
 Runtime prerequisites:
-- Octant 0.16+
+- Octant 0.16.1+
 - a Kubernetes 1.15+ cluster
 - Knative Serving 0.16+
 
