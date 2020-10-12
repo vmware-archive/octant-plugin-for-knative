@@ -21,8 +21,9 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { deleteGridAction, ServingV1, ServingV1Revision } from "../utils";
+import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Revision, volumeMountList } from "../utils";
 import { RuntimeObject } from "../metadata";
+import { ListFactory } from "@project-octant/plugin/components/list";
 
 // TODO fully fresh out
 export interface Revision {
@@ -134,6 +135,7 @@ interface RevisionDetailParameters {
   revision: Revision;
   childDeployment?: V1Deployment;
   pods: V1Pod[];
+  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
@@ -141,12 +143,14 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
   private readonly revision: Revision;
   private readonly childDeployment?: V1Deployment;
   private readonly pods: V1Pod[];
+  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revision, childDeployment, pods, factoryMetadata }: RevisionDetailParameters) {
+  constructor({ revision, childDeployment, pods, linker, factoryMetadata }: RevisionDetailParameters) {
     this.revision = revision;
     this.childDeployment = childDeployment;
     this.pods = pods;
+    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -170,11 +174,23 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
 
   toSpecComponent(): Component<any> {
     const { metadata, spec } = this.revision;
+    const container = spec.containers[0];
+
+    const sections = [
+      { header: "Image", content: new TextFactory({ value: container?.image || '<empty>' }).toComponent() },
+    ];
+    if (container?.ports?.length) {
+      sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
+    }
+    if (container?.env?.length) {
+      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace, this.linker) });
+    }
+    if (container?.volumeMounts?.length) {
+      sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });
+    }
 
     const summary = new SummaryFactory({
-      sections: [
-        { header: "Image", content: new TextFactory({ value: spec.containers[0].image || '<not found>' }).toComponent() },
-      ],
+      sections,
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
       },

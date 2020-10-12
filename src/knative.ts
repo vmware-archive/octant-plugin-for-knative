@@ -783,6 +783,7 @@ export default class MyPlugin implements octant.Plugin {
         revision,
         childDeployment,
         pods,
+        linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",

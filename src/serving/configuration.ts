@@ -23,7 +23,8 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { RevisionListFactory, Revision } from "./revision";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Revision } from "../utils";
+import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
+import { ListFactory } from "@project-octant/plugin/components/list";
 
 // TODO fully fresh out
 export interface Configuration {
@@ -158,6 +159,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
 
   toSpecComponent(): Component<any> {
     const { metadata, spec } = this.configuration;
+    const container = spec.template.spec?.containers[0];
 
     const actions = [];
     if (!(metadata.ownerReferences || []).some(r => r.controller)) {
@@ -197,10 +199,22 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       });
     }
 
+    const sections = [
+      { header: "Revision Name", content: new TextFactory({ value: spec.template.metadata?.name || '<generated>' }).toComponent() },
+      { header: "Image", content: new TextFactory({ value: container?.image || '<empty>' }).toComponent() },
+    ];
+    if (container?.ports?.length) {
+      sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
+    }
+    if (container?.env?.length) {
+      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace, this.linker) });
+    }
+    if (container?.volumeMounts?.length) {
+      sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });
+    }
+
     const summary = new SummaryFactory({
-      sections: [
-        { header: "Image", content: new TextFactory({ value: spec.template.spec?.containers[0].image || '<not found>' }).toComponent() },
-      ],
+      sections,
       options: { actions },
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
