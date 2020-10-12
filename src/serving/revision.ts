@@ -12,6 +12,7 @@ import * as h from "@project-octant/plugin/helpers";
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { DonutChartFactory } from "@project-octant/plugin/components/donut-chart";
 import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
@@ -156,7 +157,8 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Half },
             { view: this.toStatusComponent(), width: h.Width.Half },
-            { view: this.toPodListComponent(), width: h.Width.Full },
+            { view: this.toPodChartComponent(), width: h.Width.Full / 4 },
+            { view: this.toPodListComponent(), width: h.Width.Full * 3 / 4 },
           ],
         ],
       },
@@ -199,14 +201,36 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
     return summary.toComponent();
   }
 
-  toPodListComponent(): Component<any> {
-    const available = this.childDeployment?.status?.availableReplicas || 0;
-    const total = available + (this.childDeployment?.status?.unavailableReplicas || 0);
+  toPodChartComponent(): Component<any> {
+    const segments = [
+      {
+        count: this.childDeployment?.status?.availableReplicas || 0,
+        status: "ok",
+      }
+    ];
+    if (this.childDeployment?.status?.unavailableReplicas) {
+      // avoid a 1px orange line rendering glitch by only including when there is data to render
+      segments.push({
+        count: this.childDeployment.status.unavailableReplicas,
+        status: "warning",
+      });
+    }
 
+    return new DonutChartFactory({
+      labels: {
+        singular: "Pod",
+        plural: "Pods",
+      },
+      segments,
+      size: 100,
+    }).toComponent();
+  }
+
+  toPodListComponent(): Component<any> {
     return new PodListFactory({
       pods: this.pods,
       factoryMetadata: {
-        title: [new TextFactory({ value: this.childDeployment ? `Pods: ${available}/${total}` : 'Pods' }).toComponent()],
+        title: [new TextFactory({ value: 'Pods' }).toComponent()],
       },
     }).toComponent();
   }
