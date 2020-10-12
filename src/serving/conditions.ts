@@ -3,9 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// helpers for generating the
+// objects that Octant can render to components.
+import * as h from "@project-octant/plugin/helpers";
+
 import { Component } from "@project-octant/plugin/components/component";
-import { ComponentFactory } from "@project-octant/plugin/components/component-factory";
+import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
 import { TextFactory } from "@project-octant/plugin/components/text";
+import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 export interface Condition {
   status?: ConditionStatus;
@@ -96,4 +101,62 @@ export class ConditionStatusFactory implements ComponentFactory<any> {
 
 function findConditionByType(conditions: Condition[] | undefined, type: string): Condition | undefined {
   return (conditions || []).find(cond => cond.type === type);
+}
+
+
+interface ConditionListParameters {
+  conditions: Condition[];
+  factoryMetadata?: FactoryMetadata;
+}
+
+export class ConditionListFactory implements ComponentFactory<any> {
+  private readonly conditions: Condition[];
+  private readonly factoryMetadata?: FactoryMetadata;
+
+  constructor({ conditions, factoryMetadata }: ConditionListParameters) {
+    this.conditions = conditions;
+    this.factoryMetadata = factoryMetadata;
+  }
+  
+  toComponent(): Component<any> {
+    const columns = {
+      type: 'Type',
+      reason: 'Reason',
+      status: 'Status',
+      message: 'Message',
+      lastTransition: 'Last Transition'
+    };
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    table.columns = [
+      columns.type,
+      columns.reason,
+      columns.status,
+      columns.message,
+      columns.lastTransition,
+    ];
+    table.emptyContent = "There are no conditions!";
+    table.loading = false;
+    
+    for (const condition of this.conditions) {
+      const row = new h.TableRow(
+        {
+          [columns.type]: new TextFactory({ value: condition.type }),
+          [columns.reason]: new TextFactory({ value: condition.reason || '<unknown>' }),
+          [columns.status]: new TextFactory({ value: condition.status || ConditionStatus.Unknown }),
+          [columns.message]: new TextFactory({ value: condition.message || '<empty>' }),
+          [columns.lastTransition]: condition.lastTransitionTime ?
+            new TimestampFactory({ timestamp: Math.floor(new Date(condition.lastTransitionTime || 0).getTime() / 1000) }) :
+            new TextFactory({ value: condition.reason || '<unknown>' }),
+        },
+        {
+          // abuse isDeleting to highlight false conditions
+          isDeleting: condition.status == ConditionStatus.False,
+        }
+      );
+
+      table.push(row);   
+    }
+
+    return table.getFactory().toComponent();
+  }
 }

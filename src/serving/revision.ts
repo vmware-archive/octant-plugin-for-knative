@@ -20,7 +20,7 @@ import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
+import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Revision } from "../utils";
 import { RuntimeObject } from "../metadata";
 
@@ -157,6 +157,7 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Half },
             { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toConditionsListComponent(), width: h.Width.Full },
             { view: this.toPodChartComponent(), width: h.Width.Full / 4 },
             { view: this.toPodListComponent(), width: h.Width.Full * 3 / 4 },
           ],
@@ -183,22 +184,24 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
 
   toStatusComponent(): Component<any> {
     const { status } = this.revision;
-
-    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
-
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
-        { header: "Active", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Active" }).toComponent() },
-        { header: "Container Healthy", content: new ConditionStatusFactory({ conditions: status.conditions, type: "ContainerHealthy" }).toComponent() },
-        { header: "Resources Available", content: new ConditionStatusFactory({ conditions: status.conditions, type: "ResourcesAvailable" }).toComponent() },
-        { header: "Image", content: status.imageDigest ? new TextFactory({ value: status.imageDigest }).toComponent() : unknown },
+        { header: "Image", content: new TextFactory({ value: status.imageDigest || '<unknown>' }).toComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
       },
     });
     return summary.toComponent();
+  }
+
+  toConditionsListComponent(): Component<any> {
+    return new ConditionListFactory({
+      conditions: this.revision.status.conditions || [],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Conditions" }).toComponent()],
+      },
+    }).toComponent();
   }
 
   toPodChartComponent(): Component<any> {

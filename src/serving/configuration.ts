@@ -22,7 +22,7 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { RevisionListFactory, Revision } from "./revision";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
+import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Revision } from "../utils";
 
 // TODO fully fresh out
@@ -146,6 +146,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Half },
             { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toConditionsListComponent(), width: h.Width.Full },
             { view: this.toRevisionListComponent(), width: h.Width.Full },
           ],
         ],
@@ -213,7 +214,6 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
         { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
         { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
       ],
@@ -222,6 +222,15 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       },
     });
     return summary.toComponent();
+  }
+
+  toConditionsListComponent(): Component<any> {
+    return new ConditionListFactory({
+      conditions: this.configuration.status.conditions || [],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Conditions" }).toComponent()],
+      },
+    }).toComponent();
   }
 
   toRevisionListComponent(): Component<any> {

@@ -26,7 +26,7 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { RevisionListFactory, Revision } from "./revision";
 import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
+import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
 import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route, TableFactoryBuilder } from "../utils";
 import { DashboardClient } from "../utils";
@@ -239,6 +239,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Half },
             { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toConditionsListComponent(), width: h.Width.Full },
             { view: this.toTrafficPolicyComponent(), width: h.Width.Half },
             { view: this.toRevisionListComponent(), width: h.Width.Half },
           ],
@@ -307,9 +308,6 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
-        { header: "Configurations Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type:  "ConfigurationsReady" }).toComponent() },
-        { header: "Routes Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "RoutesReady" }).toComponent() },
         { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
         { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
@@ -320,6 +318,15 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       },
     });
     return summary.toComponent();
+  }
+
+  toConditionsListComponent(): Component<any> {
+    return new ConditionListFactory({
+      conditions: this.service.status.conditions || [],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Conditions" }).toComponent()],
+      },
+    }).toComponent();
   }
 
   toTrafficPolicyComponent(): Component<any> {

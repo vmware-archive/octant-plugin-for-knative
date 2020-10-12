@@ -19,7 +19,7 @@ import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
-import { ConditionSummaryFactory, ConditionStatusFactory, Condition } from "./conditions";
+import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision } from "../utils";
 import { DashboardClient } from "../utils";
 import { ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
@@ -147,6 +147,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Half },
             { view: this.toStatusComponent(), width: h.Width.Half },
+            { view: this.toConditionsListComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -166,7 +167,6 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Ready", content: new ConditionStatusFactory({ conditions: status.conditions, type: "Ready" }).toComponent() },
         { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
       ],
@@ -175,6 +175,15 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
       },
     });
     return summary.toComponent();
+  }
+
+  toConditionsListComponent(): Component<any> {
+    return new ConditionListFactory({
+      conditions: this.route.status.conditions || [],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Conditions" }).toComponent()],
+      },
+    }).toComponent();
   }
 
 }
