@@ -332,7 +332,12 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   }
 
   toTrafficPolicyComponent(): Component<any> {
-    return new TrafficPolicyTableFactory({ trafficPolicy: this.service.spec.traffic, linker: this.linker }).toComponent();
+    return new TrafficPolicyTableFactory({
+      trafficPolicy: this.service.spec.traffic,
+      latestRevision: this.service.status.latestReadyRevisionName,
+      linkerContext: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
+      linker: this.linker,
+    }).toComponent();
   }
 
   toRevisionListComponent(): Component<any> {

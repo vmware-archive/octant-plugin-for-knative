@@ -190,15 +190,21 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
 interface TrafficPolicyTableParameters {
   trafficPolicy: TrafficPolicy[];
+  latestRevision?: string;
+  linkerContext?: V1ObjectReference;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 }
 
 export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   private readonly trafficPolicy: TrafficPolicy[];
+  private readonly latestRevision?: string;
+  private readonly linkerContext?: V1ObjectReference;
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 
-  constructor({ trafficPolicy, linker }: TrafficPolicyTableParameters) {
+  constructor({ trafficPolicy, latestRevision, linkerContext, linker }: TrafficPolicyTableParameters) {
     this.trafficPolicy = trafficPolicy;
+    this.latestRevision = latestRevision;
+    this.linkerContext = linkerContext;
     this.linker = linker;
   }
   
@@ -217,24 +223,26 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
     ];
     table.loading = false;
     table.emptyContent = "There are no traffic rules!";
-    // TODO add filters
-    // table.filters = ...;
 
     for (const tp of this.trafficPolicy) {
       let type = 'Latest Revision';
-      let name: ComponentFactory<any> = new TextFactory({ value: 'n/a' });
-      if (tp.configurationName) {
+      let name: ComponentFactory<any> = new TextFactory({ value: '<unknown>' });
+      if (tp.latestRevision && this.latestRevision) {
+        name = new LinkFactory({
+          value: this.latestRevision,
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: this.latestRevision }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
+        });
+      } else if (tp.configurationName) {
         type = ServingV1Configuration;
         name = new LinkFactory({
           value: tp.configurationName,
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: tp.configurationName }),
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: tp.configurationName }, this.linkerContext),
         });
       } else if (tp.revisionName) {
         type = ServingV1Revision;
         name = new LinkFactory({
           value: tp.revisionName,
-          // TODO lookup the configuration for this revision
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
+          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       }
       const row = new h.TableRow(
