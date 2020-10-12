@@ -253,47 +253,49 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toSpecComponent(): Component<any> {
     const { metadata, spec } = this.service;
 
+    const actions = [];
+    if (!(metadata.ownerReferences || []).some(r => r.controller)) {
+      // only allow for non-controlled resources
+      actions.push({
+        name: "Configure",
+        title: "Edit Service",
+        form: {
+          fields: [
+            {
+              type: "hidden",
+              name: "action",
+              value: "knative.dev/editService",
+            },
+            {
+              type: "hidden",
+              name: "service",
+              value: YAML.stringify(JSON.parse(JSON.stringify(this.service)), { sortMapEntries: true }),
+            },
+            {
+              type: "text",
+              name: "revisionName",
+              value: "",
+              label: "Revision Name",
+              configuration: {},
+            },
+            {
+              type: "text",
+              name: "image",
+              value: spec.template.spec?.containers[0].image || "",
+              label: "Image",
+              configuration: {},
+            },
+          ],
+        },
+        modal: false,
+      });
+    }
+
     const summary = new SummaryFactory({
       sections: [
         { header: "Image", content: new TextFactory({ value: spec.template.spec?.containers[0].image || '<not found>' }).toComponent() },
       ],
-      options: {
-        actions: [
-          {
-            name: "Configure",
-            title: "Edit Service",
-            form: {
-              fields: [
-                {
-                  type: "hidden",
-                  name: "action",
-                  value: "knative.dev/editService",
-                },
-                {
-                  type: "hidden",
-                  name: "service",
-                  value: YAML.stringify(JSON.parse(JSON.stringify(this.service)), { sortMapEntries: true }),
-                },
-                {
-                  type: "text",
-                  name: "revisionName",
-                  value: "",
-                  label: "Revision Name",
-                  configuration: {},
-                },
-                {
-                  type: "text",
-                  name: "image",
-                  value: spec.template.spec?.containers[0].image || "",
-                  label: "Image",
-                  configuration: {},
-                },
-              ],
-            },
-            modal: false,
-          },
-        ],
-      },
+      options: { actions },
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
       },
