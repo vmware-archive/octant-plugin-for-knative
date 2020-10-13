@@ -9,7 +9,7 @@ import * as h from "@project-octant/plugin/helpers";
 
 import * as octant from "@project-octant/plugin";
 
-import { V1ContainerPort, V1EnvVar, V1ObjectReference, V1VolumeMount } from "@kubernetes/client-node";
+import { V1ContainerPort, V1EnvVar, V1ObjectMeta, V1ObjectReference, V1PodTemplateSpec, V1VolumeMount } from "@kubernetes/client-node";
 import { RuntimeObject } from "./metadata";
 import { PortFactory } from "@project-octant/plugin/components/port";
 import { PortsFactory } from "@project-octant/plugin/components/ports";
@@ -21,6 +21,7 @@ import { ButtonGroupFactory } from "@project-octant/plugin/components/button-gro
 import { Component } from "@project-octant/plugin/components/component";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { ListFactory } from "@project-octant/plugin/components/list";
+import { Condition } from "./serving/conditions";
 
 export const ServingV1 = "serving.knative.dev/v1";
 export const ServingV1Service = "Service";
@@ -28,6 +29,17 @@ export const ServingV1Configuration = "Configuration";
 export const ServingV1Revision = "Revision";
 export const ServingV1Route = "Route";
 
+export interface PodSpecable {
+  apiVersion: string;
+  kind: string;
+  metadata: V1ObjectMeta;
+  spec: {
+    template: V1PodTemplateSpec;
+  };
+  status: {
+    conditions?: Condition[];
+  };
+}
 
 // TODO remove after https://github.com/vmware-tanzu/plugin-library-for-octant/pull/7
 export interface EditorConfig {

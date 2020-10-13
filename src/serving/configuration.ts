@@ -23,8 +23,9 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { RevisionListFactory, Revision } from "./revision";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
+import { containerPorts, deleteGridAction, environmentList, PodSpecable, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
 import { ListFactory } from "@project-octant/plugin/components/list";
+import { Service } from "./service";
 
 // TODO fully fresh out
 export interface Configuration {
@@ -77,7 +78,7 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
     // TODO add filters
     // table.filters = ...;
 
-    const notFound = new TextFactory({ value: '<not found>' });
+    const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
     for (const configuration of this.configurations) {
       const { metadata, spec, status } = configuration;
 
@@ -145,9 +146,8 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: h.Width.Half },
-            { view: this.toStatusComponent(), width: h.Width.Half },
-            { view: this.toConditionsListComponent(), width: h.Width.Full },
+            { view: this.toSpecComponent(), width: h.Width.Full },
+            { view: this.toStatusComponent(), width: h.Width.Full },
             { view: this.toRevisionListComponent(), width: h.Width.Full },
           ],
         ],
@@ -164,44 +164,16 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
     const actions = [];
     if (!(metadata.ownerReferences || []).some(r => r.controller)) {
       // only allow for non-controlled resources
-      actions.push({
-        name: "Configure",
-        title: "Edit Configuration",
-        form: {
-          fields: [
-            {
-              type: "hidden",
-              name: "action",
-              value: "knative.dev/editConfiguration",
-            },
-            {
-              type: "hidden",
-              name: "configuration",
-              value: YAML.stringify(JSON.parse(JSON.stringify(this.configuration)), { sortMapEntries: true }),
-            },
-            {
-              type: "text",
-              name: "revisionName",
-              value: "",
-              label: "Revision Name",
-              configuration: {},
-            },
-            {
-              type: "text",
-              name: "image",
-              value: spec.template.spec?.containers[0].image || "",
-              label: "Image",
-              configuration: {},
-            },
-          ],
-        },
-        modal: false,
-      });
+      actions.push(configureAction(this.configuration));
     }
 
     const sections = [
-      { header: "Revision Name", content: new TextFactory({ value: spec.template.metadata?.name || '<generated>' }).toComponent() },
-      { header: "Image", content: new TextFactory({ value: container?.image || '<empty>' }).toComponent() },
+      { header: "Revision Name", content: spec.template.metadata?.name ?
+        new TextFactory({ value: spec.template.metadata.name }).toComponent() :
+        new TextFactory({ value: '*generated*', options: { isMarkdown: true } }).toComponent() },
+      { header: "Image", content: container?.image ?
+        new TextFactory({ value: container.image }).toComponent() :
+        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() },
     ];
     if (container?.ports?.length) {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
@@ -226,12 +198,13 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   toStatusComponent(): Component<any> {
     const { metadata, status } = this.configuration;
 
-    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
+    let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
         { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
         { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
+        { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
@@ -261,4 +234,41 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
     }).toComponent();
   }
 
+}
+
+export function configureAction(resource: PodSpecable): any {
+  const container = resource.spec.template.spec?.containers[0];
+  return {
+    name: "Configure",
+    title: "Edit Configuration",
+    form: {
+      fields: [
+        {
+          type: "hidden",
+          name: "action",
+          value: "knative.dev/configure",
+        },
+        {
+          type: "hidden",
+          name: "resource",
+          value: YAML.stringify(JSON.parse(JSON.stringify(resource)), { sortMapEntries: true }),
+        },
+        {
+          type: "text",
+          name: "revisionName",
+          value: "",
+          label: "Revision Name",
+          configuration: {},
+        },
+        {
+          type: "text",
+          name: "image",
+          value: container?.image || "",
+          label: "Image",
+          configuration: {},
+        },
+      ],
+    },
+    modal: false,
+  };
 }

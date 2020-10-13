@@ -86,7 +86,7 @@ export class RouteListFactory implements ComponentFactory<any> {
     // TODO add filters
     // table.filters = ...;
 
-    const notFound = new TextFactory({ value: '<not found>' });
+    const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
     for (const route of this.routes) {
       const { metadata, spec, status } = route;
 
@@ -145,9 +145,8 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: h.Width.Half },
-            { view: this.toStatusComponent(), width: h.Width.Half },
-            { view: this.toConditionsListComponent(), width: h.Width.Full },
+            { view: this.toSpecComponent(), width: h.Width.Full },
+            { view: this.toStatusComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -157,18 +156,27 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   }
 
   toSpecComponent(): Component<any> {
-    return new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, linker: this.linker }).toComponent();
+    const summary = new SummaryFactory({
+      sections: [
+        { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, linker: this.linker }).toComponent() },
+      ],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Spec" }).toComponent()],
+      },
+    });
+    return summary.toComponent();
   }
 
   toStatusComponent(): Component<any> {
     const { status } = this.route;
 
-    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
+    let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
         { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
+        { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
@@ -226,7 +234,7 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
 
     for (const tp of this.trafficPolicy) {
       let type = 'Latest Revision';
-      let name: ComponentFactory<any> = new TextFactory({ value: '<unknown>' });
+      let name: ComponentFactory<any> = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } });
       if (tp.latestRevision && this.latestRevision) {
         name = new LinkFactory({
           value: this.latestRevision,

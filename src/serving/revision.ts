@@ -84,7 +84,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
     // TODO add filters
     // table.filters = ...;
 
-    const notFound = new TextFactory({ value: '<not found>' });
+    const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
     for (const revision of this.revisions) {
       const { metadata, spec, status } = revision;
 
@@ -159,9 +159,8 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: h.Width.Half },
-            { view: this.toStatusComponent(), width: h.Width.Half },
-            { view: this.toConditionsListComponent(), width: h.Width.Full },
+            { view: this.toSpecComponent(), width: h.Width.Full },
+            { view: this.toStatusComponent(), width: h.Width.Full },
             { view: this.toPodChartComponent(), width: h.Width.Full / 4 },
             { view: this.toPodListComponent(), width: h.Width.Full * 3 / 4 },
           ],
@@ -177,7 +176,9 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
     const container = spec.containers[0];
 
     const sections = [
-      { header: "Image", content: new TextFactory({ value: container?.image || '<empty>' }).toComponent() },
+      { header: "Image", content: container?.image ?
+        new TextFactory({ value: container.image }).toComponent() :
+        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() },
     ];
     if (container?.ports?.length) {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
@@ -202,7 +203,13 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
     const { status } = this.revision;
     const summary = new SummaryFactory({
       sections: [
-        { header: "Image", content: new TextFactory({ value: status.imageDigest || '<unknown>' }).toComponent() },
+        {
+          header: "Image",
+          content: status.imageDigest ?
+            new TextFactory({ value: status.imageDigest }).toComponent() :
+            new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent(),
+        },
+        { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
@@ -285,7 +292,7 @@ export class PodListFactory implements ComponentFactory<any> {
     // TODO add filters
     // table.filters = ...;
 
-    const notFound = new TextFactory({ value: '<not found>' });
+    const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
     for (const pod of this.pods) {
       const { metadata, spec, status } = pod;
 

@@ -30,7 +30,7 @@ import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./cond
 import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
 import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route, TableFactoryBuilder, environmentList, containerPorts, volumeMountList } from "../utils";
 import { DashboardClient } from "../utils";
-import { Configuration } from "./configuration";
+import { Configuration, configureAction } from "./configuration";
 
 // TODO fully fresh out
 export interface Service {
@@ -166,7 +166,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
     // TODO add filters
     // table.filters = ...;
 
-    const notFound = new TextFactory({ value: '<not found>' });
+    const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
     for (const service of this.services) {
       const { metadata, spec, status } = service;
 
@@ -237,11 +237,9 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       options: {
         sections: [
           [
-            { view: this.toSpecComponent(), width: h.Width.Half },
-            { view: this.toStatusComponent(), width: h.Width.Half },
-            { view: this.toConditionsListComponent(), width: h.Width.Full },
-            { view: this.toTrafficPolicyComponent(), width: h.Width.Half },
-            { view: this.toRevisionListComponent(), width: h.Width.Half },
+            { view: this.toSpecComponent(), width: h.Width.Full },
+            { view: this.toStatusComponent(), width: h.Width.Full },
+            { view: this.toRevisionListComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -257,44 +255,16 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
     const actions = [];
     if (!(metadata.ownerReferences || []).some(r => r.controller)) {
       // only allow for non-controlled resources
-      actions.push({
-        name: "Configure",
-        title: "Edit Service",
-        form: {
-          fields: [
-            {
-              type: "hidden",
-              name: "action",
-              value: "knative.dev/editService",
-            },
-            {
-              type: "hidden",
-              name: "service",
-              value: YAML.stringify(JSON.parse(JSON.stringify(this.service)), { sortMapEntries: true }),
-            },
-            {
-              type: "text",
-              name: "revisionName",
-              value: "",
-              label: "Revision Name",
-              configuration: {},
-            },
-            {
-              type: "text",
-              name: "image",
-              value: container?.image || "",
-              label: "Image",
-              configuration: {},
-            },
-          ],
-        },
-        modal: false,
-      });
+      actions.push(configureAction(this.service));
     }
 
     const sections = [
-      { header: "Revision Name", content: new TextFactory({ value: spec.template.metadata?.name || '<generated>' }).toComponent() },
-      { header: "Image", content: new TextFactory({ value: container?.image || '<empty>' }).toComponent() },
+      { header: "Revision Name", content: spec.template.metadata?.name ?
+        new TextFactory({ value: spec.template.metadata.name }).toComponent() :
+        new TextFactory({ value: '*generated*', options: { isMarkdown: true } }).toComponent() },
+      { header: "Image", content: container?.image ?
+        new TextFactory({ value: container.image }).toComponent() :
+        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() },
     ];
     if (container?.ports?.length) {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
@@ -305,6 +275,8 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
     if (container?.volumeMounts?.length) {
       sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });
     }
+
+    sections.push({ header: "Traffic Policy", content: this.toTrafficPolicyComponent() });
 
     const summary = new SummaryFactory({
       sections,
@@ -319,7 +291,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toStatusComponent(): Component<any> {
     const { metadata, status } = this.service;
 
-    let unknown = new TextFactory({ value: '<unknown>' }).toComponent();
+    let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
 
     const summary = new SummaryFactory({
       sections: [
@@ -327,6 +299,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
         { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
         { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
         { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
+        { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],

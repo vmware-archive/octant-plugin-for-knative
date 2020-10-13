@@ -56,8 +56,7 @@ export default class MyPlugin implements octant.Plugin {
     supportPrinterConfig: [],
     supportTab: [],
     actionNames: [
-      "knative.dev/editConfiguration",
-      "knative.dev/editService",
+      "knative.dev/configure",
       "knative.dev/newService",
       "knative.dev/setContentPath",
       "action.octant.dev/setNamespace",
@@ -140,39 +139,21 @@ export default class MyPlugin implements octant.Plugin {
       return;
     }
 
-    if (request.actionName === "knative.dev/editService") {
-      const service = YAML.parse(request.payload.service);
+    if (request.actionName === "knative.dev/configure") {
+      const resource = YAML.parse(request.payload.resource);
 
       // TODO this should not be necessary
-      delete service.metadata.managedFields;
+      delete resource.metadata.managedFields;
 
       // apply edits
       if (request.payload.revisionName) {
-        service.spec.template.metadata.name = `${service.metadata.name}-${request.payload.revisionName}`;
+        resource.spec.template.metadata.name = `${resource.metadata.name}-${request.payload.revisionName}`;
       } else {
-        delete service.spec.template.metadata.name;
+        delete resource.spec.template.metadata.name;
       }
-      service.spec.template.spec.containers[0].image = request.payload.image;
+      resource.spec.template.spec.containers[0].image = request.payload.image;
       
-      this.dashboardClient.Update(service.metadata.namespace, JSON.stringify(service));
-      return;
-    }
-
-    if (request.actionName === "knative.dev/editConfiguration") {
-      const configuration = YAML.parse(request.payload.configuration);
-
-      // TODO this should not be necessary
-      delete configuration.metadata.managedFields;
-
-      // apply edits
-      if (request.payload.revisionName) {
-        configuration.spec.template.metadata.name = `${configuration.metadata.name}-${request.payload.revisionName}`;
-      } else {
-        delete configuration.spec.template.metadata.name;
-      }
-      configuration.spec.template.spec.containers[0].image = request.payload.image;
-      
-      this.dashboardClient.Update(configuration.metadata.namespace, JSON.stringify(configuration));
+      this.dashboardClient.Update(resource.metadata.namespace, JSON.stringify(resource));
       return;
     }
 

@@ -141,12 +141,16 @@ export class ConditionListFactory implements ComponentFactory<any> {
       const row = new h.TableRow(
         {
           [columns.type]: new TextFactory({ value: condition.type }),
-          [columns.reason]: new TextFactory({ value: condition.reason || '<unknown>' }),
+          [columns.reason]: condition.reason ?
+            new TextFactory({ value: condition.reason }) :
+            new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }),
           [columns.status]: new TextFactory({ value: condition.status || ConditionStatus.Unknown }),
-          [columns.message]: new TextFactory({ value: condition.message || '<empty>' }),
+          [columns.message]: condition.message ?
+            new TextFactory({ value: condition.message }) :
+            new TextFactory({ value: '*empty*', options: { isMarkdown: true } }),
           [columns.lastTransition]: condition.lastTransitionTime ?
             new TimestampFactory({ timestamp: Math.floor(new Date(condition.lastTransitionTime || 0).getTime() / 1000) }) :
-            new TextFactory({ value: condition.reason || '<unknown>' }),
+            new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }),
         },
         {
           // abuse isDeleting to highlight false conditions
