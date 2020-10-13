@@ -1,6 +1,6 @@
 {
   "name": "@project-octant/plugin-for-knative",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Octant Plugin for Knative",
   "license": "Apache-2.0",
   "keywords": [
