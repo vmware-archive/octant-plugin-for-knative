@@ -24,8 +24,6 @@ import { RevisionListFactory, Revision } from "./revision";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { containerPorts, deleteGridAction, environmentList, PodSpecable, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
-import { ListFactory } from "@project-octant/plugin/components/list";
-import { Service } from "./service";
 
 // TODO fully fresh out
 export interface Configuration {
@@ -225,6 +223,8 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
+      latestCreatedRevision: this.configuration.status.latestCreatedRevisionName,
+      latestReadyRevision: this.configuration.status.latestReadyRevisionName,
       childDeployments: this.childDeployments,
       context: { apiVersion: ServingV1, kind: ServingV1Configuration, name: this.configuration.metadata.name },
       linker: this.linker,

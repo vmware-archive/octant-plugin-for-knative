@@ -329,6 +329,8 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toRevisionListComponent(): Component<any> {
     return new RevisionListFactory({
       revisions: this.revisions,
+      latestCreatedRevision: this.service.status.latestCreatedRevisionName,
+      latestReadyRevision: this.service.status.latestReadyRevisionName,
       childDeployments: this.childDeployments,
       context: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
       linker: this.linker,
