@@ -23,7 +23,6 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Revision, volumeMountList } from "../utils";
 import { RuntimeObject } from "../metadata";
-import { ListFactory } from "@project-octant/plugin/components/list";
 
 // TODO fully fresh out
 export interface Revision {
@@ -40,6 +39,8 @@ export interface Revision {
 
 interface RevisionListParameters {
   revisions: Revision[];
+  latestCreatedRevision?: string;
+  latestReadyRevision?: string;
   childDeployments?: {[key: string]: V1Deployment};
   context: V1ObjectReference;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
@@ -48,13 +49,17 @@ interface RevisionListParameters {
 
 export class RevisionListFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
+  private readonly latestCreatedRevision?: string;
+  private readonly latestReadyRevision?: string;
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly context: V1ObjectReference;
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revisions, childDeployments, context, linker, factoryMetadata }: RevisionListParameters) {
+  constructor({ revisions, latestCreatedRevision, latestReadyRevision, childDeployments, context, linker, factoryMetadata }: RevisionListParameters) {
     this.revisions = revisions;
+    this.latestCreatedRevision = latestCreatedRevision;
+    this.latestReadyRevision = latestReadyRevision;
     this.childDeployments = childDeployments
     this.context = context;
     this.linker = linker
@@ -90,14 +95,40 @@ export class RevisionListFactory implements ComponentFactory<any> {
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
+      let latest: Component<any> | undefined;
+      if (revision.metadata.name == this.latestReadyRevision && revision.metadata.name == this.latestCreatedRevision) {
+        latest = new TextFactory({ value: "Latest Ready and Created" }).toComponent();
+      }
+      else if (revision.metadata.name == this.latestReadyRevision) {
+        latest = new TextFactory({ value: "Latest Ready" }).toComponent();
+      }
+      else if (revision.metadata.name == this.latestCreatedRevision) {
+        latest = new TextFactory({ value: "Latest Created" }).toComponent();
+      }
+
       const row = new h.TableRow(
         {
-          [columns.name]: new LinkFactory({
-            value: metadata.name || '',
-            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
+          [columns.name]: new FlexLayoutFactory({
             options: {
-              status: ready.statusCode(),
-              statusDetail: ready.toComponent(),
+              sections: [
+                [
+                  {
+                    width: latest ? h.Width.Half : h.Width.Full,
+                    view: new LinkFactory({
+                      value: metadata.name || '',
+                      ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
+                      options: {
+                        status: ready.statusCode(),
+                        statusDetail: ready.toComponent(),
+                      },
+                    }).toComponent(),
+                  },
+                  latest ? {
+                    width: h.Width.Half,
+                    view: latest,
+                  } : undefined,
+                ].filter(i => i) as { width: number, view: Component<any> }[],
+              ],
             },
           }),
           [columns.generation]: (metadata.labels || {})['serving.knative.dev/configurationGeneration']
