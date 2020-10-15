@@ -122,6 +122,7 @@ interface ConfigurationDetailParameters {
   childDeployments?: {[key: string]: V1Deployment};
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
+  create?: boolean;
 }
 
 export class ConfigurationSummaryFactory implements ComponentFactory<any> {
@@ -130,13 +131,15 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
+  private readonly create?: boolean;
 
-  constructor({ configuration, revisions, childDeployments, linker, factoryMetadata }: ConfigurationDetailParameters) {
+  constructor({ configuration, revisions, childDeployments, linker, factoryMetadata, create }: ConfigurationDetailParameters) {
     this.configuration = configuration;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
     this.linker = linker;
     this.factoryMetadata = factoryMetadata;
+    this.create = create;
   }
   
   toComponent(): Component<any> {
@@ -160,7 +163,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
     const container = spec.template.spec?.containers[0];
 
     const actions = [];
-    if (!(metadata.ownerReferences || []).some(r => r.controller)) {
+    if (this.create && !(metadata.ownerReferences || []).some(r => r.controller)) {
       // only allow for non-controlled resources
       actions.push(configureAction(this.configuration));
     }

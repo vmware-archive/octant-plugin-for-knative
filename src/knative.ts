@@ -45,6 +45,8 @@ export default class MyPlugin implements octant.Plugin {
   // If true, the contentHandler and navigationHandler will be called.
   isModule = true;
 
+  create = false;
+
   // Octant will assign these via the constructor at runtime.
   dashboardClient: DashboardClient;
   httpClient: octant.HTTPClient;
@@ -528,7 +530,7 @@ export default class MyPlugin implements octant.Plugin {
     });
     services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    const buttonGroup = new ButtonGroupFactory({
+    const buttonGroup = this.create ? new ButtonGroupFactory({
       buttons: [
         {
           name: "New Service",
@@ -540,7 +542,7 @@ export default class MyPlugin implements octant.Plugin {
         },
       ],
       factoryMetadata,
-    });
+    }) : void 0;
 
     return new ServiceListFactory({ services, buttonGroup, linker: this.linker, factoryMetadata });
   }
@@ -604,6 +606,7 @@ export default class MyPlugin implements octant.Plugin {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
         },
+        create: this.create,
       }),
       new MetadataSummaryFactory({
         object: service,
@@ -705,6 +708,7 @@ export default class MyPlugin implements octant.Plugin {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
         },
+        create: this.create,
       }),
       new MetadataSummaryFactory({
         object: configuration,
