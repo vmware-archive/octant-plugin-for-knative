@@ -299,6 +299,10 @@ export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceVie
     // add service
     rv.addNode(this.route);
 
+    if (!this.route.status.traffic) {
+      return rv.toComponent();
+    }
+
     const trafficPolicy = this.route.status.traffic.slice();
     trafficPolicy.sort((a, b) => a.percent - b.percent);
     for (const traffic of this.route.status.traffic) {

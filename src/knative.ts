@@ -244,6 +244,7 @@ export default class MyPlugin implements octant.Plugin {
       return handler.call(this, Object.assign({}, params, request));
     } catch (e) {
       // TODO handle errors other than not found
+      console.error(`Error rendering Knative plugin content path "${contentPath}": ${JSON.stringify(e)}`);
       return notFoundContentResponse({ contentPath });
     }
   }
@@ -600,7 +601,9 @@ export default class MyPlugin implements octant.Plugin {
           },
         },
       });
-      childDeployments[revision.metadata.uid || ''] = deployments[0];
+      if (deployments.length) {
+        childDeployments[revision.metadata.uid || ''] = deployments[0];
+      }
       return childDeployments;
     }, {} as {[key: string]: V1Deployment});
 
