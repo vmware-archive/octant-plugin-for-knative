@@ -422,6 +422,11 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
             namespace: configuration.metadata.namespace,
             selector: { "serving.knative.dev/configuration": configuration.metadata.name },
           });
+          revisions.sort((a, b) => {
+            const generationA = (a.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+            const generationB = (b.metadata.labels || {})['serving.knative.dev/configurationGeneration'] || '-1';
+            return parseInt(generationA) - parseInt(generationB);
+          });
           for (const revision of revisions) {
             rv.addEdge(configuration, revision, "explicit");
           }
