@@ -45,6 +45,8 @@ export default class MyPlugin implements octant.Plugin {
   // If true, the contentHandler and navigationHandler will be called.
   isModule = true;
 
+  create = false;
+
   // Octant will assign these via the constructor at runtime.
   dashboardClient: DashboardClient;
   httpClient: octant.HTTPClient;
@@ -79,6 +81,14 @@ export default class MyPlugin implements octant.Plugin {
     this.router = new RouteRecognizer();
     this.linker = (ref: V1ObjectReference, context?: V1ObjectReference) => knativeLinker(this.dashboardClient.RefPath, ref, context);
 
+    this.router.add([{
+      path: "/_create",
+      handler: (params: any) => {
+        this.create = true;
+        this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: "/knative" });
+        return h.createContentResponse([], []);
+      }
+    }]);
     this.router.add([{
       path: "/serving",
       handler: this.servingOverviewHandler,
@@ -528,7 +538,7 @@ export default class MyPlugin implements octant.Plugin {
     });
     services.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
-    const buttonGroup = new ButtonGroupFactory({
+    const buttonGroup = this.create ? new ButtonGroupFactory({
       buttons: [
         {
           name: "New Service",
@@ -540,7 +550,7 @@ export default class MyPlugin implements octant.Plugin {
         },
       ],
       factoryMetadata,
-    });
+    }) : void 0;
 
     return new ServiceListFactory({ services, buttonGroup, linker: this.linker, factoryMetadata });
   }
@@ -604,6 +614,7 @@ export default class MyPlugin implements octant.Plugin {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
         },
+        create: this.create,
       }),
       new MetadataSummaryFactory({
         object: service,
@@ -705,6 +716,7 @@ export default class MyPlugin implements octant.Plugin {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
           accessor: "summary",
         },
+        create: this.create,
       }),
       new MetadataSummaryFactory({
         object: configuration,

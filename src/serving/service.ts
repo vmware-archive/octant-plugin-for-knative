@@ -93,6 +93,11 @@ export class NewServiceFactory implements ComponentFactory<any> {
                   name: "name",
                   value: "",
                   label: "Name",
+                  placeholder: "my-service",
+                  error: "Service name is required.",
+                  validators: [
+                    "required"
+                  ],
                   configuration: {},
                 },
                 {
@@ -100,6 +105,7 @@ export class NewServiceFactory implements ComponentFactory<any> {
                   name: "revisionName",
                   value: "",
                   label: "Revision Name",
+                  placeholder: "v2",
                   configuration: {},
                 },
                 {
@@ -107,6 +113,11 @@ export class NewServiceFactory implements ComponentFactory<any> {
                   name: "image",
                   value: "",
                   label: "Image",
+                  placeholder: "docker.io/example/app",
+                  error: "Image name is required.",
+                  validators: [
+                    "required"
+                  ],
                   configuration: {},
                 },
               ],
@@ -215,6 +226,7 @@ interface ServiceDetailParameters {
   childDeployments?: {[key: string]: V1Deployment};
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
+  create?: boolean;
 }
 
 export class ServiceSummaryFactory implements ComponentFactory<any> {
@@ -223,13 +235,15 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
+  private readonly create?: boolean;
 
-  constructor({ service, revisions, childDeployments, linker, factoryMetadata }: ServiceDetailParameters) {
+  constructor({ service, revisions, childDeployments, linker, factoryMetadata, create }: ServiceDetailParameters) {
     this.service = service;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
     this.linker = linker;
     this.factoryMetadata = factoryMetadata;
+    this.create = create;
   }
   
   toComponent(): Component<any> {
@@ -253,7 +267,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
     const container = spec.template.spec?.containers[0];
 
     const actions = [];
-    if (!(metadata.ownerReferences || []).some(r => r.controller)) {
+    if (this.create && !(metadata.ownerReferences || []).some(r => r.controller)) {
       // only allow for non-controlled resources
       actions.push(configureAction(this.service));
     }
