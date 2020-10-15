@@ -82,6 +82,14 @@ export default class MyPlugin implements octant.Plugin {
     this.linker = (ref: V1ObjectReference, context?: V1ObjectReference) => knativeLinker(this.dashboardClient.RefPath, ref, context);
 
     this.router.add([{
+      path: "/_create",
+      handler: (params: any) => {
+        this.create = true;
+        this.dashboardClient.SendEvent(params.clientID, "event.octant.dev/contentPath", { contentPath: "/knative" });
+        return h.createContentResponse([], []);
+      }
+    }]);
+    this.router.add([{
       path: "/serving",
       handler: this.servingOverviewHandler,
     }]);
