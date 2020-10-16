@@ -21,6 +21,7 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { RevisionListFactory, Revision } from "./revision";
+import { Route } from "./route";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
 import { containerPorts, deleteGridAction, environmentList, PodSpecable, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
@@ -120,6 +121,7 @@ interface ConfigurationDetailParameters {
   configuration: Configuration;
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
+  allRoutes?: Route[];
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
   create?: boolean;
@@ -129,14 +131,16 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   private readonly configuration: Configuration;
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
+  private readonly allRoutes?: Route[];
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
   private readonly create?: boolean;
 
-  constructor({ configuration, revisions, childDeployments, linker, factoryMetadata, create }: ConfigurationDetailParameters) {
+  constructor({ configuration, revisions, childDeployments, allRoutes, linker, factoryMetadata, create }: ConfigurationDetailParameters) {
     this.configuration = configuration;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
+    this.allRoutes = allRoutes;
     this.linker = linker;
     this.factoryMetadata = factoryMetadata;
     this.create = create;
@@ -203,8 +207,6 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
-        { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) }).toComponent() : unknown },
         { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
@@ -229,6 +231,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       latestCreatedRevision: this.configuration.status.latestCreatedRevisionName,
       latestReadyRevision: this.configuration.status.latestReadyRevisionName,
       childDeployments: this.childDeployments,
+      allRoutes: this.allRoutes,
       context: { apiVersion: ServingV1, kind: ServingV1Configuration, name: this.configuration.metadata.name },
       linker: this.linker,
       factoryMetadata: {

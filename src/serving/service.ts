@@ -224,6 +224,7 @@ interface ServiceDetailParameters {
   service: Service;
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
+  allRoutes?: Route[];
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
   create?: boolean;
@@ -233,14 +234,16 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly service: Service;
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
+  private readonly allRoutes?: Route[];
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
   private readonly create?: boolean;
 
-  constructor({ service, revisions, childDeployments, linker, factoryMetadata, create }: ServiceDetailParameters) {
+  constructor({ service, revisions, childDeployments, allRoutes, linker, factoryMetadata, create }: ServiceDetailParameters) {
     this.service = service;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
+    this.allRoutes = allRoutes;
     this.linker = linker;
     this.factoryMetadata = factoryMetadata;
     this.create = create;
@@ -309,10 +312,8 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
-        { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
-        { header: "Latest Created Revision", content: status.latestCreatedRevisionName ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
-        { header: "Latest Ready Revision", content: status.latestReadyRevisionName ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) }).toComponent() : unknown },
+        { header: "External Address", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
+        { header: "Internal Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
@@ -334,6 +335,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   toTrafficPolicyComponent(): Component<any> {
     return new TrafficPolicyTableFactory({
       trafficPolicy: this.service.spec.traffic,
+      trafficPolicyStatus: this.service.status.traffic,
       latestRevision: this.service.status.latestReadyRevisionName,
       linkerContext: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
       linker: this.linker,
@@ -346,6 +348,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       latestCreatedRevision: this.service.status.latestCreatedRevisionName,
       latestReadyRevision: this.service.status.latestReadyRevisionName,
       childDeployments: this.childDeployments,
+      allRoutes: this.allRoutes,
       context: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
       linker: this.linker,
       factoryMetadata: {
