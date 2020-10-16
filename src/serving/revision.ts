@@ -21,8 +21,10 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Revision, volumeMountList } from "../utils";
+import { containerPorts, deleteGridAction, environmentList, ServingV1, ServingV1Revision, ServingV1Route, volumeMountList } from "../utils";
 import { RuntimeObject } from "../metadata";
+
+import { Route } from "./route";
 
 // TODO fully fresh out
 export interface Revision {
@@ -42,6 +44,7 @@ interface RevisionListParameters {
   latestCreatedRevision?: string;
   latestReadyRevision?: string;
   childDeployments?: {[key: string]: V1Deployment};
+  allRoutes?: Route[];
   context: V1ObjectReference;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
@@ -52,15 +55,17 @@ export class RevisionListFactory implements ComponentFactory<any> {
   private readonly latestCreatedRevision?: string;
   private readonly latestReadyRevision?: string;
   private readonly childDeployments?: {[key: string]: V1Deployment};
+  private readonly allRoutes?: Route[];
   private readonly context: V1ObjectReference;
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revisions, latestCreatedRevision, latestReadyRevision, childDeployments, context, linker, factoryMetadata }: RevisionListParameters) {
+  constructor({ revisions, latestCreatedRevision, latestReadyRevision, childDeployments, allRoutes, context, linker, factoryMetadata }: RevisionListParameters) {
     this.revisions = revisions;
     this.latestCreatedRevision = latestCreatedRevision;
     this.latestReadyRevision = latestReadyRevision;
     this.childDeployments = childDeployments
+    this.allRoutes = allRoutes;
     this.context = context;
     this.linker = linker
     this.factoryMetadata = factoryMetadata;
@@ -70,20 +75,19 @@ export class RevisionListFactory implements ComponentFactory<any> {
     const columns = {
       name: 'Name',
       generation: 'Generation',
+      traffic: 'Route Traffic',
       replicas: 'Replicas',
       age: 'Age',
     };
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
-    table.columns = this.childDeployments ? [
+    table.columns = [
       columns.name,
-      columns.generation,
-      columns.replicas,
-      columns.age,
-    ] : [
-      columns.name,
+      this.allRoutes ? columns.traffic : '',
+      this.childDeployments ? columns.replicas : '',
       columns.generation,
       columns.age,
-    ];
+    ].filter(i => i);
+
     table.loading = false;
     table.emptyContent = "There are no revisions!";
     // TODO add filters
@@ -104,6 +108,21 @@ export class RevisionListFactory implements ComponentFactory<any> {
       }
       else if (revision.metadata.name == this.latestCreatedRevision) {
         latest = new TextFactory({ value: "Latest Created" }).toComponent();
+      }
+
+      const traffic = (this.allRoutes || []).reduce((traffic, route) => {
+        for (const t of (route.status?.traffic || [])) {
+          if (t.revisionName == revision.metadata.name) {
+            traffic.push(new LinkFactory({
+              value: `${route.metadata.name} @ ${t.percent || 0}%`,
+              ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: route.metadata.name }),
+            }).toComponent());
+          }
+        }
+        return traffic;
+      }, [] as Component<any>[]);
+      if (!traffic.length) {
+        traffic.push(new TextFactory({ value: "*none*", options: { isMarkdown: true } }).toComponent())
       }
 
       const row = new h.TableRow(
@@ -134,6 +153,15 @@ export class RevisionListFactory implements ComponentFactory<any> {
           [columns.generation]: (metadata.labels || {})['serving.knative.dev/configurationGeneration']
             ? new TextFactory({ value: (metadata.labels || {})['serving.knative.dev/configurationGeneration'] })
             : notFound,
+          [columns.traffic]: new FlexLayoutFactory({
+            options: {
+              sections: [
+                traffic.map(t => {
+                  return { width: h.Width.Full, view: t };
+                })
+              ],
+            },
+          }),
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
         },
         {

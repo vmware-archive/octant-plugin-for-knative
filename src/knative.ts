@@ -606,12 +606,19 @@ export default class MyPlugin implements octant.Plugin {
       }
       return childDeployments;
     }, {} as {[key: string]: V1Deployment});
+    const allRoutes = this.dashboardClient.List({
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
+      namespace: service.metadata.namespace || '',
+    });
+    allRoutes.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return [
       new ServiceSummaryFactory({
         service,
         revisions,
         childDeployments,
+        allRoutes,
         linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],
@@ -708,12 +715,19 @@ export default class MyPlugin implements octant.Plugin {
       childDeployments[revision.metadata.uid || ''] = deployments[0];
       return childDeployments;
     }, {} as {[key: string]: V1Deployment});
+    const allRoutes: Route[] = this.dashboardClient.List({
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
+      namespace: configuration.metadata.namespace || '',
+    });
+    allRoutes.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 
     return [
       new ConfigurationSummaryFactory({
         configuration,
         revisions,
         childDeployments,
+        allRoutes,
         linker: this.linker,
         factoryMetadata: {
           title: [new TextFactory({ value: "Summary" }).toComponent()],

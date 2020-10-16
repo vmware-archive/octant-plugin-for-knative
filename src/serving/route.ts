@@ -46,10 +46,13 @@ export interface Route {
 }
 
 export interface TrafficPolicy {
-  configurationName?: string;
+  tag?: string;
   revisionName?: string;
-  latestRevision: boolean;
-  percent: number;
+  configurationName?: string;
+  latestRevision?: boolean;
+  percent?: number;
+  url?: string;
+
 }
 
 interface RouteListParameters {
@@ -158,7 +161,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   toSpecComponent(): Component<any> {
     const summary = new SummaryFactory({
       sections: [
-        { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, linker: this.linker }).toComponent() },
+        { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, trafficPolicyStatus: this.route.status.traffic, linker: this.linker }).toComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
@@ -174,8 +177,8 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
     const summary = new SummaryFactory({
       sections: [
-        { header: "Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
-        { header: "URL", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
+        { header: "External Address", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
+        { header: "Internal Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
         { header: "Conditions", content: this.toConditionsListComponent() },
       ],
       factoryMetadata: {
@@ -198,6 +201,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
 interface TrafficPolicyTableParameters {
   trafficPolicy: TrafficPolicy[];
+  trafficPolicyStatus?: TrafficPolicy[];
   latestRevision?: string;
   linkerContext?: V1ObjectReference;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
@@ -205,12 +209,14 @@ interface TrafficPolicyTableParameters {
 
 export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   private readonly trafficPolicy: TrafficPolicy[];
+  private readonly trafficPolicyStatus?: TrafficPolicy[];
   private readonly latestRevision?: string;
   private readonly linkerContext?: V1ObjectReference;
   private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
 
-  constructor({ trafficPolicy, latestRevision, linkerContext, linker }: TrafficPolicyTableParameters) {
+  constructor({ trafficPolicy, trafficPolicyStatus, latestRevision, linkerContext, linker }: TrafficPolicyTableParameters) {
     this.trafficPolicy = trafficPolicy;
+    this.trafficPolicyStatus = trafficPolicyStatus;
     this.latestRevision = latestRevision;
     this.linkerContext = linkerContext;
     this.linker = linker;
@@ -221,6 +227,7 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
       name: 'Name',
       type: 'Type',
       percent: 'Percent',
+      tag: 'Tag',
     };
     const table = new h.TableFactoryBuilder([], []);
     table.title = [new TextFactory({ value: "Traffic Policy" })];
@@ -228,6 +235,7 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
       columns.name,
       columns.type,
       columns.percent,
+      columns.tag,
     ];
     table.loading = false;
     table.emptyContent = "There are no traffic rules!";
@@ -253,11 +261,17 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
           ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       }
+      const tpUrl = tp.url || this.trafficPolicyStatus?.find(tps => tp.tag == tps.tag)?.url;
       const row = new h.TableRow(
         {
           [columns.name]: name,
           [columns.type]: new TextFactory({ value: type }),
           [columns.percent]: new TextFactory({ value: `${tp.percent}%` }),
+          [columns.tag]: tp.tag ?
+            tpUrl ?
+              new LinkFactory({ value: tp.tag, ref: tpUrl }) :
+              new TextFactory({ value: tp.tag }) :
+            new TextFactory({ value: "*none*", options: { isMarkdown: true } }) ,
         },
       );    
       table.push(row);
@@ -304,7 +318,7 @@ export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceVie
     }
 
     const trafficPolicy = this.route.status.traffic.slice();
-    trafficPolicy.sort((a, b) => a.percent - b.percent);
+    trafficPolicy.sort((a, b) => (a.percent || 0) - (b.percent || 0));
     for (const traffic of this.route.status.traffic) {
       if (!traffic.percent) {
         continue;
