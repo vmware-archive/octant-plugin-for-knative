@@ -99,15 +99,12 @@ export class RevisionListFactory implements ComponentFactory<any> {
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
-      let latest: Component<any> | undefined;
-      if (revision.metadata.name == this.latestReadyRevision && revision.metadata.name == this.latestCreatedRevision) {
-        latest = new TextFactory({ value: "Latest Ready and Created" }).toComponent();
+      let pills = "";
+      if (revision.metadata.name == this.latestReadyRevision) {
+        pills += "<span class='label'>Latest Ready</span>";
       }
-      else if (revision.metadata.name == this.latestReadyRevision) {
-        latest = new TextFactory({ value: "Latest Ready" }).toComponent();
-      }
-      else if (revision.metadata.name == this.latestCreatedRevision) {
-        latest = new TextFactory({ value: "Latest Created" }).toComponent();
+      if (revision.metadata.name == this.latestCreatedRevision) {
+        pills += "<span class='label'>Latest Created<span>";
       }
 
       const traffic = (this.allRoutes || []).reduce((traffic, route) => {
@@ -132,7 +129,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
               sections: [
                 [
                   {
-                    width: latest ? h.Width.Half : h.Width.Full,
+                    width: pills ? h.Width.Half : h.Width.Full,
                     view: new LinkFactory({
                       value: metadata.name || '',
                       ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
@@ -142,9 +139,9 @@ export class RevisionListFactory implements ComponentFactory<any> {
                       },
                     }).toComponent(),
                   },
-                  latest ? {
+                  pills ? {
                     width: h.Width.Half,
-                    view: latest,
+                    view: new TextFactory({ value: pills, options: { isMarkdown: true } }).toComponent(),
                   } : undefined,
                 ].filter(i => i) as { width: number, view: Component<any> }[],
               ],
