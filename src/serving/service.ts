@@ -3,55 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
-import YAML from "yaml";
+import * as octant from "../overrides/octant";
 
 // helpers for generating the
 // objects that Octant can render to components.
-import * as h from "@project-octant/plugin/helpers";
+import * as h from "../overrides/helpers";
 
 // components
-import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
+import { ConditionSummaryFactory, ConditionListFactory } from "../components/conditions";
 import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
+import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
+import { linker } from "../components/linker";
 import { ListFactory } from "@project-octant/plugin/components/list";
-import { ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
+import { containerPorts, environmentList, volumeMountList } from "../components/pod";
+import { KnativeResourceViewerFactory, ResourceViewerConfig, Node, Edge } from "../components/resource-viewer";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
-import { RevisionListFactory, Revision } from "./revision";
-import { TrafficPolicyTableFactory, TrafficPolicy, Route } from "./route";
+import { V1Deployment } from "@kubernetes/client-node";
+import { ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route, Service, Revision, Route, Configuration } from "./api";
+import { configureAction } from "./configuration";
+import { RevisionListFactory,  } from "./revision";
+import { TrafficPolicyTableFactory } from "./route";
 
-import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { KnativeResourceViewerFactory, Node, Edge } from "./resource-viewer";
-import { deleteGridAction, ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration, ServingV1Route, TableFactoryBuilder, environmentList, containerPorts, volumeMountList } from "../utils";
-import { DashboardClient } from "../utils";
-import { Configuration, configureAction } from "./configuration";
 
-// TODO fully fresh out
-export interface Service {
-  apiVersion: string;
-  kind: string;
-  metadata: V1ObjectMeta;
-  spec: {
-    template: V1PodTemplateSpec;
-    traffic: TrafficPolicy[];
-  };
-  status: {
-    conditions?: Condition[];
-    url?: string;
-    address?: {
-      url?: string;
-    };
-    latestCreatedRevisionName?: string;
-    latestReadyRevisionName?: string;
-    traffic: TrafficPolicy[];
-  };
-}
 
 interface NewServiceParameters {
   clientID: string;
@@ -138,14 +119,14 @@ export class NewServiceFactory implements ComponentFactory<any> {
 interface ServiceListParameters {
   services: Service[];
   buttonGroup?: ButtonGroupFactory;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceListFactory implements ComponentFactory<any> {
   private readonly services: Service[];
   private readonly buttonGroup?: ButtonGroupFactory;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   constructor({ services, buttonGroup, linker, factoryMetadata }: ServiceListParameters) {
@@ -163,7 +144,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
       latestReady: 'Latest Ready',
       age: 'Age',
     };
-    const table = new TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
+    const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
     table.columns = [
       columns.name,
       columns.url,
@@ -225,7 +206,7 @@ interface ServiceDetailParameters {
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
   allRoutes?: Route[];
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
   create?: boolean;
 }
@@ -235,7 +216,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly allRoutes?: Route[];
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
   private readonly create?: boolean;
 
@@ -361,15 +342,15 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
 
 interface ServiceResourceViewerParameters {
   service: Service;
-  dashboardClient: DashboardClient;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  dashboardClient: octant.DashboardClient;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceResourceViewerFactory implements ComponentFactory<ResourceViewerConfig> {
   private readonly service: Service;
-  private readonly dashboardClient: DashboardClient;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly dashboardClient: octant.DashboardClient;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   private readonly nodes: {[key: string]: Node};

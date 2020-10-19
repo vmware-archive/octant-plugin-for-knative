@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node";
+import * as octant from "../overrides/octant";
 
 // helpers for generating the
 // objects that Octant can render to components.
@@ -14,56 +14,28 @@ import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
 import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
+import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
+import { linker } from "../components/linker";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
-import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { deleteGridAction, ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision } from "../utils";
-import { DashboardClient } from "../utils";
-import { ResourceViewerConfig } from "@project-octant/plugin/components/resource-viewer";
-import { KnativeResourceViewerFactory, Edge, Node } from "./resource-viewer";
-import { Configuration } from "./configuration";
-import { Revision } from "./revision";
+import { ConditionSummaryFactory, ConditionListFactory } from "../components/conditions";
+import { KnativeResourceViewerFactory, ResourceViewerConfig, Edge, Node } from "../components/resource-viewer";
 
-// TODO fully fresh out
-export interface Route {
-  apiVersion: string;
-  kind: string;
-  metadata: V1ObjectMeta;
-  spec: {
-    traffic: TrafficPolicy[];
-  };
-  status: {
-    conditions?: Condition[];
-    address: {
-      url?: string;
-    };
-    url?: string;
-    traffic: TrafficPolicy[];
-  };
-}
-
-export interface TrafficPolicy {
-  tag?: string;
-  revisionName?: string;
-  configurationName?: string;
-  latestRevision?: boolean;
-  percent?: number;
-  url?: string;
-
-}
+import { V1ObjectReference } from "@kubernetes/client-node";
+import { ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision, Configuration, Revision, Route, TrafficPolicy } from "./api";
 
 interface RouteListParameters {
   routes: Route[];
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteListFactory implements ComponentFactory<any> {
   private readonly routes: Route[];
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   constructor({ routes, linker, factoryMetadata }: RouteListParameters) {
@@ -128,13 +100,13 @@ export class RouteListFactory implements ComponentFactory<any> {
 
 interface RouteDetailParameters {
   route: Route;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteSummaryFactory implements ComponentFactory<any> {
   private readonly route: Route;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   constructor({ route, linker, factoryMetadata }: RouteDetailParameters) {
@@ -204,7 +176,7 @@ interface TrafficPolicyTableParameters {
   trafficPolicyStatus?: TrafficPolicy[];
   latestRevision?: string;
   linkerContext?: V1ObjectReference;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
 }
 
 export class TrafficPolicyTableFactory implements ComponentFactory<any> {
@@ -212,7 +184,7 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   private readonly trafficPolicyStatus?: TrafficPolicy[];
   private readonly latestRevision?: string;
   private readonly linkerContext?: V1ObjectReference;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
 
   constructor({ trafficPolicy, trafficPolicyStatus, latestRevision, linkerContext, linker }: TrafficPolicyTableParameters) {
     this.trafficPolicy = trafficPolicy;
@@ -283,15 +255,15 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
 
 interface RouteDataPlaneViewerConfig {
   route: Route;
-  dashboardClient: DashboardClient;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  dashboardClient: octant.DashboardClient;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceViewerConfig> {
   private readonly route: Route;
-  private readonly dashboardClient: DashboardClient;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly dashboardClient: octant.DashboardClient;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   private readonly nodes: {[key: string]: Node};

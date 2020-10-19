@@ -13,7 +13,7 @@ import { createContentResponse } from "@project-octant/plugin/helpers";
 
 // components
 import { ListFactory } from "@project-octant/plugin/components/list";
-import { TextFactory } from "@project-octant/plugin/components/text";
+import { TextFactory } from "../overrides/text";
 
 interface NotFoundParameters {
   contentPath: string;
@@ -40,6 +40,7 @@ You can:
         `,
         options: {
           isMarkdown: true,
+          trustedContent: true,
         },
       }).toComponent(),
     ],

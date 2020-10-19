@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1PodTemplateSpec, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
 import YAML from "yaml";
 
 // helpers for generating the
@@ -13,43 +12,30 @@ import * as h from "@project-octant/plugin/helpers";
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
+import { ConditionSummaryFactory, ConditionListFactory } from "../components/conditions";
 import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout";
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
+import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
+import { linker } from "../components/linker";
+import { containerPorts, environmentList, PodSpecable, volumeMountList } from "../components/pod";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
-import { RevisionListFactory, Revision } from "./revision";
-import { Route } from "./route";
-
-import { ConditionSummaryFactory, Condition, ConditionListFactory } from "./conditions";
-import { containerPorts, deleteGridAction, environmentList, PodSpecable, ServingV1, ServingV1Configuration, ServingV1Revision, volumeMountList } from "../utils";
-
-// TODO fully fresh out
-export interface Configuration {
-  apiVersion: string;
-  kind: string;
-  metadata: V1ObjectMeta;
-  spec: {
-    template: V1PodTemplateSpec;
-  };
-  status: {
-    conditions?: Condition[];
-    latestCreatedRevisionName?: string;
-    latestReadyRevisionName?: string;
-  };
-}
+import { V1Deployment } from "@kubernetes/client-node";
+import { ServingV1, ServingV1Configuration, Configuration, Revision, Route } from "./api";
+import { RevisionListFactory } from "./revision";
 
 interface ConfigurationListParameters {
   configurations: Configuration[];
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ConfigurationListFactory implements ComponentFactory<any> {
   private readonly configurations: Configuration[];
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   constructor({ configurations, linker, factoryMetadata }: ConfigurationListParameters) {
@@ -122,7 +108,7 @@ interface ConfigurationDetailParameters {
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
   allRoutes?: Route[];
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  linker: linker;
   factoryMetadata?: FactoryMetadata;
   create?: boolean;
 }
@@ -132,7 +118,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly allRoutes?: Route[];
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
+  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
   private readonly create?: boolean;
 

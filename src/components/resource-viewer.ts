@@ -13,7 +13,9 @@ import { ResourceViewerFactory, ResourceViewerConfig } from "@project-octant/plu
 import { TextFactory } from "@project-octant/plugin/components/text";
 
 import { ConditionSummaryFactory } from "./conditions";
-import { RuntimeObject } from "../metadata";
+import { RuntimeObject } from "./metadata";
+
+export { ResourceViewerConfig };
 
 export interface Node {
   name?: string;

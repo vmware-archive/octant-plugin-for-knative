@@ -13,29 +13,31 @@ import YAML from "yaml";
 
 // plugin contains interfaces your plugin can expect
 // this includes your main plugin class, response, requests, and clients.
-import * as octant from "@project-octant/plugin";
+import * as octant from "./overrides/octant";
 
 // helpers for generating the
 // objects that Octant can render to components.
 import * as h from "@project-octant/plugin/helpers";
 
 // components
-import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
-import { TextFactory } from "@project-octant/plugin/components/text";
+import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
+import { EditorFactory } from "./overrides/editor";
+import { MetadataSummaryFactory } from "./components/metadata";
+import { notFoundContentResponse } from "./components/not-found";
+import { knativeLinker } from "./components/linker";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { ListFactory } from "@project-octant/plugin/components/list";
+import { TextFactory } from "@project-octant/plugin/components/text";
 
-import { Configuration, ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
-import { Revision, RevisionSummaryFactory } from "./serving/revision";
-import { Route, RouteDataPlaneViewerFactory, RouteListFactory, RouteSummaryFactory } from "./serving/route";
-import { Service, ServiceListFactory, ServiceSummaryFactory, NewServiceFactory, ServiceResourceViewerFactory } from "./serving/service";
-
-import { MetadataSummaryFactory } from "./metadata";
-import { knativeLinker, ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route } from "./utils";
 import { V1Pod, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
-import { notFoundContentResponse } from "./not-found";
-import { DashboardClient, EditorFactory } from "./utils";
+import { ServingV1, ServingV1Service, ServingV1Configuration, ServingV1Revision, ServingV1Route, Configuration, Revision, Route, Service } from "./serving/api";
+
+import { ConfigurationListFactory, ConfigurationSummaryFactory } from "./serving/configuration";
+import { RevisionSummaryFactory } from "./serving/revision";
+import { RouteDataPlaneViewerFactory, RouteListFactory, RouteSummaryFactory } from "./serving/route";
+import { ServiceListFactory, ServiceSummaryFactory, NewServiceFactory, ServiceResourceViewerFactory } from "./serving/service";
+
 
 export default class MyPlugin implements octant.Plugin {
   // Static fields that Octant uses
@@ -48,7 +50,7 @@ export default class MyPlugin implements octant.Plugin {
   create = false;
 
   // Octant will assign these via the constructor at runtime.
-  dashboardClient: DashboardClient;
+  dashboardClient: octant.DashboardClient;
   httpClient: octant.HTTPClient;
   router: RouteRecognizer;
   linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
@@ -70,7 +72,7 @@ export default class MyPlugin implements octant.Plugin {
 
   // Octant expects plugin constructors to accept two arguments, the dashboardClient and the httpClient
   constructor(
-    dashboardClient: DashboardClient,
+    dashboardClient: octant.DashboardClient,
     httpClient: octant.HTTPClient
   ) {
     this.dashboardClient = dashboardClient;
