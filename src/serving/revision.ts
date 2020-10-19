@@ -218,11 +218,16 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
     const { metadata, spec } = this.revision;
     const container = spec.containers[0];
 
-    const sections = [
-      { header: "Image", content: container?.image ?
+    const sections = [];
+    if ((metadata?.annotations || {})["autoscaling.knative.dev/minScale"]) {
+      sections.push({ header: "Min Scale", content: new TextFactory({ value: (metadata?.annotations || {})["autoscaling.knative.dev/minScale"] || "" }).toComponent() });
+    }
+    if ((metadata?.annotations || {})["autoscaling.knative.dev/maxScale"]) {
+      sections.push({ header: "Max Scale", content: new TextFactory({ value: (metadata?.annotations || {})["autoscaling.knative.dev/maxScale"] || "" }).toComponent() });
+    }
+    sections.push({ header: "Image", content: container?.image ?
         new TextFactory({ value: container.image }).toComponent() :
-        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() },
-    ];
+        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() });
     if (container?.ports?.length) {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
     }

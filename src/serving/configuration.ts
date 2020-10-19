@@ -158,14 +158,19 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       actions.push(configureAction(this.configuration));
     }
 
-    const sections = [
-      { header: "Revision Name", content: spec.template.metadata?.name ?
+    const sections = [];
+    sections.push({ header: "Revision Name", content: spec.template.metadata?.name ?
         new TextFactory({ value: spec.template.metadata.name }).toComponent() :
-        new TextFactory({ value: '*generated*', options: { isMarkdown: true } }).toComponent() },
-      { header: "Image", content: container?.image ?
+        new TextFactory({ value: '*generated*', options: { isMarkdown: true } }).toComponent() });
+    if ((spec.template.metadata?.annotations || {})["autoscaling.knative.dev/minScale"]) {
+      sections.push({ header: "Min Scale", content: new TextFactory({ value: (spec.template.metadata?.annotations || {})["autoscaling.knative.dev/minScale"] || "" }).toComponent() });
+    }
+    if ((spec.template.metadata?.annotations || {})["autoscaling.knative.dev/maxScale"]) {
+      sections.push({ header: "Max Scale", content: new TextFactory({ value: (spec.template.metadata?.annotations || {})["autoscaling.knative.dev/maxScale"] || "" }).toComponent() });
+    }
+    sections.push({ header: "Image", content: container?.image ?
         new TextFactory({ value: container.image }).toComponent() :
-        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() },
-    ];
+        new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent() });
     if (container?.ports?.length) {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
     }
