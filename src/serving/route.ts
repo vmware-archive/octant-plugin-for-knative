@@ -133,6 +133,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
   toSpecComponent(): Component<any> {
     const summary = new SummaryFactory({
       sections: [
+        { header: "Visibility", content: new TextFactory({ value: (this.route.metadata.labels || {})["serving.knative.dev/visibility"] || "external" }).toComponent() },
         { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, trafficPolicyStatus: this.route.status.traffic, linker: this.linker }).toComponent() },
       ],
       factoryMetadata: {
@@ -147,12 +148,16 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
 
     let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
 
+    const sections = [];
+
+    if (status.address?.url !== status.url) {
+      sections.push({ header: "External Address", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown });
+    }
+    sections.push({ header: "Internal Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown });
+    sections.push({ header: "Conditions", content: this.toConditionsListComponent() });
+
     const summary = new SummaryFactory({
-      sections: [
-        { header: "External Address", content: status.url ? new LinkFactory({ value: status.url, ref: status.url }).toComponent() : unknown },
-        { header: "Internal Address", content: status.address?.url ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent() : unknown },
-        { header: "Conditions", content: this.toConditionsListComponent() },
-      ],
+      sections,
       factoryMetadata: {
         title: [new TextFactory({ value: "Status" }).toComponent()],
       },
