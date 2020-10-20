@@ -246,7 +246,7 @@ export default class MyPlugin implements octant.Plugin {
       return handler.call(this, Object.assign({}, params, request));
     } catch (e) {
       // TODO handle errors other than not found
-      console.error(`Error rendering Knative plugin content path "${contentPath}": ${JSON.stringify(e)}`);
+      console.error(`Error rendering Knative plugin content path "${contentPath}": `, e);
       return notFoundContentResponse({ contentPath });
     }
   }
@@ -347,13 +347,21 @@ export default class MyPlugin implements octant.Plugin {
 
   serviceDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.serviceName;
+    const service: Service = this.dashboardClient.Get({
+      apiVersion: ServingV1,
+      kind: ServingV1Service,
+      namespace: this.namespace,
+      name: name,
+    });
     const title = [
       new LinkFactory({ value: "Knative", ref: "/knative" }),
       new LinkFactory({ value: "Serving", ref: this.linker({ apiVersion: ServingV1 }) }),
       new LinkFactory({ value: "Services", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service }) }),
       new TextFactory({ value: name }),
     ];
-    const body = this.serviceDetail(name);
+    const body = this.serviceDetail(service);
+    const controlledBy = service.metadata.ownerReferences?.find(r => r.controller);
+    const controlledByMessage = controlledBy ? `This resource is controlled by *${controlledBy.kind}* **${controlledBy.name}**, deleting it may not have the intended effect.\n\n` : '';
     const buttonGroup = new ButtonGroupFactory({
       buttons: [
         {
@@ -367,7 +375,7 @@ export default class MyPlugin implements octant.Plugin {
           },
           confirmation: {
             title: "Delete Service",
-            body: `Are you sure you want to delete *Service* **${name}**? This action is permanent and cannot be recovered.`,
+            body: `${controlledByMessage}Are you sure you want to delete *Service* **${name}**? This action is permanent and cannot be recovered.`,
           },
         },
       ],
@@ -396,13 +404,21 @@ export default class MyPlugin implements octant.Plugin {
 
   configurationDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.configurationName;
+    const configuration: Configuration = this.dashboardClient.Get({
+      apiVersion: ServingV1,
+      kind: ServingV1Configuration,
+      namespace: this.namespace,
+      name: name,
+    });
     const title = [
       new LinkFactory({ value: "Knative", ref: "/knative" }),
       new LinkFactory({ value: "Serving", ref: this.linker({ apiVersion: ServingV1 }) }),
       new LinkFactory({ value: "Configurations", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration }) }),
       new TextFactory({ value: name }),
     ];
-    const body = this.configurationDetail(name);
+    const body = this.configurationDetail(configuration);
+    const controlledBy = configuration.metadata.ownerReferences?.find(r => r.controller);
+    const controlledByMessage = controlledBy ? `This resource is controlled by *${controlledBy.kind}* **${controlledBy.name}**, deleting it may not have the intended effect.\n\n` : '';
     const buttonGroup = new ButtonGroupFactory({
       buttons: [
         {
@@ -416,7 +432,7 @@ export default class MyPlugin implements octant.Plugin {
           },
           confirmation: {
             title: "Delete Configuration",
-            body: `Are you sure you want to delete *Configuration* **${name}**? This action is permanent and cannot be recovered.`,
+            body: `${controlledByMessage}Are you sure you want to delete *Configuration* **${name}**? This action is permanent and cannot be recovered.`,
           },
         },
       ],
@@ -441,6 +457,12 @@ export default class MyPlugin implements octant.Plugin {
 
   revisionDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.revisionName;
+    const revision: Revision = this.dashboardClient.Get({
+      apiVersion: ServingV1,
+      kind: ServingV1Revision,
+      namespace: this.namespace,
+      name: name,
+    });
     const title = [];
     if (params.serviceName) {
       title.push(
@@ -462,7 +484,9 @@ export default class MyPlugin implements octant.Plugin {
       );
     }
 
-    const body = this.revisionDetail(name);
+    const body = this.revisionDetail(revision);
+    const controlledBy = revision.metadata.ownerReferences?.find(r => r.controller);
+    const controlledByMessage = controlledBy ? `This resource is controlled by *${controlledBy.kind}* **${controlledBy.name}**, deleting it may not have the intended effect.\n\n` : '';
     const buttonGroup = new ButtonGroupFactory({
       buttons: [
         {
@@ -476,7 +500,7 @@ export default class MyPlugin implements octant.Plugin {
           },
           confirmation: {
             title: "Delete Revision",
-            body: `Are you sure you want to delete *Revision* **${name}**? This action is permanent and cannot be recovered.`,
+            body: `${controlledByMessage}Are you sure you want to delete *Revision* **${name}**? This action is permanent and cannot be recovered.`,
           },
         },
       ],
@@ -505,13 +529,21 @@ export default class MyPlugin implements octant.Plugin {
 
   routeDetailHandler(params: any): octant.ContentResponse {
     const name: string = params.routeName;
+    const route: Route = this.dashboardClient.Get({
+      apiVersion: ServingV1,
+      kind: ServingV1Route,
+      namespace: this.namespace,
+      name: name,
+    });
     const title = [
       new LinkFactory({ value: "Knative", ref: "/knative" }),
       new LinkFactory({ value: "Serving", ref: this.linker({ apiVersion: ServingV1 }) }),
       new LinkFactory({ value: "Routes", ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route }) }),
       new TextFactory({ value: name }),
     ];
-    const body = this.routeDetail(name);
+    const body = this.routeDetail(route);
+    const controlledBy = route.metadata.ownerReferences?.find(r => r.controller);
+    const controlledByMessage = controlledBy ? `This resource is controlled by *${controlledBy.kind}* **${controlledBy.name}**, deleting it may not have the intended effect.\n\n` : '';
     const buttonGroup = new ButtonGroupFactory({
       buttons: [
         {
@@ -525,7 +557,7 @@ export default class MyPlugin implements octant.Plugin {
           },
           confirmation: {
             title: "Delete Route",
-            body: `Are you sure you want to delete *Route* **${name}**? This action is permanent and cannot be recovered.`,
+            body: `${controlledByMessage}Are you sure you want to delete *Route* **${name}**? This action is permanent and cannot be recovered.`,
           },
         },
       ],
@@ -564,13 +596,7 @@ export default class MyPlugin implements octant.Plugin {
     return [form];
   }
 
-  serviceDetail(name: string): ComponentFactory<any>[] {
-    const service: Service = this.dashboardClient.Get({
-      apiVersion: ServingV1,
-      kind: ServingV1Service,
-      namespace: this.namespace,
-      name: name,
-    });
+  serviceDetail(service: Service): ComponentFactory<any>[] {
     const routes: Route[] = this.dashboardClient.List({
       apiVersion: ServingV1,
       kind: ServingV1Route,
@@ -683,13 +709,7 @@ export default class MyPlugin implements octant.Plugin {
     return new ConfigurationListFactory({ configurations, linker: this.linker, factoryMetadata });
   }
 
-  configurationDetail(name: string): ComponentFactory<any>[] {
-    const configuration: Configuration = this.dashboardClient.Get({
-      apiVersion: ServingV1,
-      kind: ServingV1Configuration,
-      namespace: this.namespace,
-      name: name,
-    });
+  configurationDetail(configuration: Configuration): ComponentFactory<any>[] {
     const revisions: Revision[] = this.dashboardClient.List({
       apiVersion: ServingV1,
       kind: ServingV1Revision,
@@ -763,13 +783,7 @@ export default class MyPlugin implements octant.Plugin {
     ];
   }
 
-  revisionDetail(name: string): ComponentFactory<any>[] {
-    const revision: Revision = this.dashboardClient.Get({
-      apiVersion: ServingV1,
-      kind: ServingV1Revision,
-      namespace: this.namespace,
-      name: name,
-    });
+  revisionDetail(revision: Revision): ComponentFactory<any>[] {
     const childDeployment: V1Deployment | undefined = this.dashboardClient.List({
       apiVersion: 'apps/v1',
       kind: 'Deployment',
@@ -785,7 +799,7 @@ export default class MyPlugin implements octant.Plugin {
       kind: 'Pod',
       namespace: this.namespace,
       selector: {
-        'serving.knative.dev/revision': name,
+        'serving.knative.dev/revision': revision.metadata.name || '_',
       },
     });
     pods.sort((a, b) => (a.metadata?.name || '').localeCompare(b.metadata?.name || ''));
@@ -838,14 +852,7 @@ export default class MyPlugin implements octant.Plugin {
     return new RouteListFactory({ routes, linker: this.linker, factoryMetadata });
   }
 
-  routeDetail(name: string): ComponentFactory<any>[] {
-    const route: Route = this.dashboardClient.Get({
-      apiVersion: ServingV1,
-      kind: ServingV1Route,
-      namespace: this.namespace,
-      name: name,
-    });
-
+  routeDetail(route: Route): ComponentFactory<any>[] {
     return [
       new RouteSummaryFactory({
         route,

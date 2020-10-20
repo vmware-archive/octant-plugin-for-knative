@@ -62,7 +62,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
     const columns = {
       name: 'Name',
       generation: 'Generation',
-      traffic: 'Route Traffic',
+      traffic: 'Traffic Policies',
       replicas: 'Replicas',
       age: 'Age',
     };

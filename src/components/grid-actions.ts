@@ -17,6 +17,9 @@ interface GridAction {
 }
 
 export function deleteGridAction(obj: RuntimeObject): GridAction {
+  const controlledBy = obj.metadata.ownerReferences?.find(r => r.controller);
+  const controlledByMessage = controlledBy ? `This resource is controlled by *${controlledBy.kind}* **${controlledBy.name}**, deleting it may not have the intended effect.\n\n` : ''
+
   return {
     name: "Delete",
     actionPath: "action.octant.dev/deleteObject",
@@ -28,7 +31,7 @@ export function deleteGridAction(obj: RuntimeObject): GridAction {
     },
     confirmation: {   
       title: `Delete ${obj.kind}`,
-      body: `Are you sure you want to delete *${obj.kind}* **${obj.metadata.name}**? This action is permanent and cannot be recovered.`,
+      body: `${controlledByMessage}Are you sure you want to delete *${obj.kind}* **${obj.metadata.name}**? This action is permanent and cannot be recovered.`,
     },
     type: "danger",
   };

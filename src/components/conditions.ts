@@ -129,22 +129,31 @@ export class ConditionListFactory implements ComponentFactory<any> {
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
     table.columns = [
       columns.type,
-      columns.reason,
       columns.status,
+      columns.reason,
       columns.message,
       columns.lastTransition,
     ];
     table.emptyContent = "There are no conditions!";
     table.loading = false;
+
+    const conditions = this.conditions.slice();
+    // sort by type
+    conditions.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+    const conditionPrimaryIndex = conditions.findIndex(c => c.type == 'Ready' || c.type == 'Succeeded');
+    if (conditionPrimaryIndex > 0) {
+      // move the primary condition to the start, otherwise preserving the order
+      conditions.splice(0, 0, conditions.splice(conditionPrimaryIndex, 1)[0]);
+    }
     
-    for (const condition of this.conditions) {
+    for (const condition of conditions) {
       const row = new h.TableRow(
         {
           [columns.type]: new TextFactory({ value: condition.type }),
+          [columns.status]: new TextFactory({ value: condition.status || ConditionStatus.Unknown }),
           [columns.reason]: condition.reason ?
             new TextFactory({ value: condition.reason }) :
             new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }),
-          [columns.status]: new TextFactory({ value: condition.status || ConditionStatus.Unknown }),
           [columns.message]: condition.message ?
             new TextFactory({ value: condition.message }) :
             new TextFactory({ value: '*empty*', options: { isMarkdown: true } }),

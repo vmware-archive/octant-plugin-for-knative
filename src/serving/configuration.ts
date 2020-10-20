@@ -24,7 +24,7 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 
 import { V1Deployment } from "@kubernetes/client-node";
-import { ServingV1, ServingV1Configuration, Configuration, Revision, Route } from "./api";
+import { ServingV1, ServingV1Configuration, Configuration, Revision, Route, ServingV1Revision } from "./api";
 import { RevisionListFactory } from "./revision";
 
 interface ConfigurationListParameters {
@@ -47,8 +47,8 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
   toComponent(): Component<any> {
     const columns = {
       name: 'Name',
-      latestCreated: 'Latest Created',
-      latestReady: 'Latest Ready',
+      latestCreated: 'Latest Created Revision',
+      latestReady: 'Latest Ready Revision',
       age: 'Age',
     };
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
@@ -80,10 +80,10 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
             },
           }),
           [columns.latestCreated]: status.latestCreatedRevisionName
-            ? new TextFactory({ value: status.latestCreatedRevisionName })
+            ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
             : notFound,
           [columns.latestReady]: status.latestReadyRevisionName
-            ? new TextFactory({ value: status.latestReadyRevisionName })
+            ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
             : notFound,
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
         },
