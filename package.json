@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.12.0",
-    "@project-octant/plugin": "^0.2.0",
+    "@project-octant/plugin": "^0.2.1",
     "route-recognizer": "^0.3.4",
     "yaml": "^1.10.0"
   },

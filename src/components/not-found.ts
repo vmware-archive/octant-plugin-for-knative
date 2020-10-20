@@ -13,7 +13,7 @@ import { createContentResponse } from "@project-octant/plugin/helpers";
 
 // components
 import { ListFactory } from "@project-octant/plugin/components/list";
-import { TextFactory } from "../overrides/text";
+import { TextFactory } from "@project-octant/plugin/components/text";
 
 interface NotFoundParameters {
   contentPath: string;

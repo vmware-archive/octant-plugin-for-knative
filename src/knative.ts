@@ -13,7 +13,7 @@ import YAML from "yaml";
 
 // plugin contains interfaces your plugin can expect
 // this includes your main plugin class, response, requests, and clients.
-import * as octant from "./overrides/octant";
+import * as octant from "@project-octant/plugin";
 
 // helpers for generating the
 // objects that Octant can render to components.
@@ -22,7 +22,7 @@ import * as h from "@project-octant/plugin/helpers";
 // components
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
 import { ButtonGroupFactory } from "@project-octant/plugin/components/button-group";
-import { EditorFactory } from "./overrides/editor";
+import { EditorFactory } from "@project-octant/plugin/components/editor";
 import { MetadataSummaryFactory } from "./components/metadata";
 import { notFoundContentResponse } from "./components/not-found";
 import { knativeLinker } from "./components/linker";

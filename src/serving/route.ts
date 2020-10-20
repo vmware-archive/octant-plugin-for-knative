@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as octant from "../overrides/octant";
+import * as octant from "@project-octant/plugin";
 
 // helpers for generating the
 // objects that Octant can render to components.
