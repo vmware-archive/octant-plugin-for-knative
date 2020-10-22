@@ -41,6 +41,8 @@ rm ~/.config/octant/plugins/knative.js
 
 Contributors will need to sign a DCO (Developer Certificate of Origin) with all changes. We also ask that a changelog entry is included with your pull request. Details are described in our [contributing](CONTRIBUTING.md) documentation.
 
+See our [hacking](HACKING.md) guide for getting your development environment setup.
+
 ## Acknowledgements
 
 This plugin was scaffolded using [wwitzel3/generator-octant-plugin](https://github.com/wwitzel3/generator-octant-plugin) and [Yeoman](http://yeoman.io).

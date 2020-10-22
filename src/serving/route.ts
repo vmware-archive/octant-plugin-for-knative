@@ -16,7 +16,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
-import { linker } from "../components/linker";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
@@ -27,20 +26,19 @@ import { KnativeResourceViewerFactory, ResourceViewerConfig, Edge, Node } from "
 import { V1ObjectReference } from "@kubernetes/client-node";
 import { ServingV1, ServingV1Configuration, ServingV1Route, ServingV1Revision, Configuration, Revision, Route, TrafficPolicy } from "./api";
 
+import ctx from "../context";
+
 interface RouteListParameters {
   routes: Route[];
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteListFactory implements ComponentFactory<any> {
   private readonly routes: Route[];
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ routes, linker, factoryMetadata }: RouteListParameters) {
+  constructor({ routes, factoryMetadata }: RouteListParameters) {
     this.routes = routes;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -71,7 +69,7 @@ export class RouteListFactory implements ComponentFactory<any> {
         {
           [columns.name]: new LinkFactory({
             value: metadata.name || '',
-            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
+            ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: metadata.name }),
             options: {
               status: ready.statusCode(),
               statusDetail: ready.toComponent(),
@@ -100,18 +98,15 @@ export class RouteListFactory implements ComponentFactory<any> {
 
 interface RouteDetailParameters {
   route: Route;
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteSummaryFactory implements ComponentFactory<any> {
   private readonly route: Route;
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ route, linker, factoryMetadata }: RouteDetailParameters) {
+  constructor({ route, factoryMetadata }: RouteDetailParameters) {
     this.route = route;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -134,7 +129,7 @@ export class RouteSummaryFactory implements ComponentFactory<any> {
     const summary = new SummaryFactory({
       sections: [
         { header: "Visibility", content: new TextFactory({ value: (this.route.metadata.labels || {})["serving.knative.dev/visibility"] || "external" }).toComponent() },
-        { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, trafficPolicyStatus: this.route.status.traffic, linker: this.linker }).toComponent() },
+        { header: "Traffic Policy", content: new TrafficPolicyTableFactory({ trafficPolicy: this.route.spec.traffic, trafficPolicyStatus: this.route.status.traffic }).toComponent() },
       ],
       factoryMetadata: {
         title: [new TextFactory({ value: "Spec" }).toComponent()],
@@ -181,7 +176,6 @@ interface TrafficPolicyTableParameters {
   trafficPolicyStatus?: TrafficPolicy[];
   latestRevision?: string;
   linkerContext?: V1ObjectReference;
-  linker: linker;
 }
 
 export class TrafficPolicyTableFactory implements ComponentFactory<any> {
@@ -189,14 +183,12 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
   private readonly trafficPolicyStatus?: TrafficPolicy[];
   private readonly latestRevision?: string;
   private readonly linkerContext?: V1ObjectReference;
-  private readonly linker: linker;
 
-  constructor({ trafficPolicy, trafficPolicyStatus, latestRevision, linkerContext, linker }: TrafficPolicyTableParameters) {
+  constructor({ trafficPolicy, trafficPolicyStatus, latestRevision, linkerContext }: TrafficPolicyTableParameters) {
     this.trafficPolicy = trafficPolicy;
     this.trafficPolicyStatus = trafficPolicyStatus;
     this.latestRevision = latestRevision;
     this.linkerContext = linkerContext;
-    this.linker = linker;
   }
   
   toComponent(): Component<any> {
@@ -223,19 +215,19 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
       if (tp.latestRevision && this.latestRevision) {
         name = new LinkFactory({
           value: this.latestRevision,
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: this.latestRevision }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
+          ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: this.latestRevision }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       } else if (tp.configurationName) {
         type = ServingV1Configuration;
         name = new LinkFactory({
           value: tp.configurationName,
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: tp.configurationName }, this.linkerContext),
+          ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: tp.configurationName }, this.linkerContext),
         });
       } else if (tp.revisionName) {
         type = ServingV1Revision;
         name = new LinkFactory({
           value: tp.revisionName,
-          ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
+          ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: tp.revisionName }, this.linkerContext || { apiVersion: ServingV1, kind: ServingV1Configuration, name: "_" }),
         });
       }
       const tpUrl = tp.url || this.trafficPolicyStatus?.find(tps => tp.tag == tps.tag)?.url;
@@ -260,24 +252,18 @@ export class TrafficPolicyTableFactory implements ComponentFactory<any> {
 
 interface RouteDataPlaneViewerConfig {
   route: Route;
-  dashboardClient: octant.DashboardClient;
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceViewerConfig> {
   private readonly route: Route;
-  private readonly dashboardClient: octant.DashboardClient;
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   private readonly nodes: {[key: string]: Node};
   private readonly edges: {[key: string]: Edge[]};
 
-  constructor({ route, dashboardClient, linker, factoryMetadata }: RouteDataPlaneViewerConfig) {
+  constructor({ route, factoryMetadata }: RouteDataPlaneViewerConfig) {
     this.route = route;
-    this.dashboardClient = dashboardClient;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
 
     this.nodes = {};
@@ -285,7 +271,7 @@ export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceVie
   }
 
   toComponent(): Component<ResourceViewerConfig> {
-    const rv = new KnativeResourceViewerFactory({ self: this.route, linker: this.linker, factoryMetadata: this.factoryMetadata });
+    const rv = new KnativeResourceViewerFactory({ self: this.route, factoryMetadata: this.factoryMetadata });
 
     // add service
     rv.addNode(this.route);
@@ -303,14 +289,14 @@ export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceVie
 
       if (traffic.configurationName) {
         try {
-          const configuration: Configuration = this.dashboardClient.Get({
+          const configuration: Configuration = ctx.dashboardClient.Get({
             apiVersion: ServingV1,
             kind: ServingV1Configuration,
             namespace: this.route.metadata.namespace,
             name: traffic.configurationName,
           });
           rv.addEdge(this.route, configuration, "explicit");
-          const revision: Revision = this.dashboardClient.Get({
+          const revision: Revision = ctx.dashboardClient.Get({
             apiVersion: ServingV1,
             kind: ServingV1Revision,
             namespace: this.route.metadata.namespace,
@@ -322,7 +308,7 @@ export class RouteDataPlaneViewerFactory implements ComponentFactory<ResourceVie
         }
       } else if (traffic.revisionName) {
         try {
-          const revision: Revision = this.dashboardClient.Get({
+          const revision: Revision = ctx.dashboardClient.Get({
             apiVersion: ServingV1,
             kind: ServingV1Revision,
             namespace: this.route.metadata.namespace,

@@ -17,7 +17,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
-import { linker } from "../components/linker";
 import { containerPorts, environmentList, PodSpecable, volumeMountList } from "../components/pod";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TextFactory } from "@project-octant/plugin/components/text";
@@ -27,20 +26,19 @@ import { V1Deployment } from "@kubernetes/client-node";
 import { ServingV1, ServingV1Configuration, Configuration, Revision, Route, ServingV1Revision } from "./api";
 import { RevisionListFactory } from "./revision";
 
+import ctx from "../context";
+
 interface ConfigurationListParameters {
   configurations: Configuration[];
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ConfigurationListFactory implements ComponentFactory<any> {
   private readonly configurations: Configuration[];
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ configurations, linker, factoryMetadata }: ConfigurationListParameters) {
+  constructor({ configurations, factoryMetadata }: ConfigurationListParameters) {
     this.configurations = configurations;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -73,17 +71,17 @@ export class ConfigurationListFactory implements ComponentFactory<any> {
         {
           [columns.name]: new LinkFactory({
             value: metadata.name || '',
-            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }),
+            ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }),
             options: {
               status: ready.statusCode(),
               statusDetail: ready.toComponent(),
             },
           }),
           [columns.latestCreated]: status.latestCreatedRevisionName
-            ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
+            ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
             : notFound,
           [columns.latestReady]: status.latestReadyRevisionName
-            ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
+            ? new LinkFactory({ value: status.latestReadyRevisionName, ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Configuration, name: metadata.name }) })
             : notFound,
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
         },
@@ -108,7 +106,6 @@ interface ConfigurationDetailParameters {
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
   allRoutes?: Route[];
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
   create?: boolean;
 }
@@ -118,16 +115,14 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly allRoutes?: Route[];
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
   private readonly create?: boolean;
 
-  constructor({ configuration, revisions, childDeployments, allRoutes, linker, factoryMetadata, create }: ConfigurationDetailParameters) {
+  constructor({ configuration, revisions, childDeployments, allRoutes, factoryMetadata, create }: ConfigurationDetailParameters) {
     this.configuration = configuration;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
     this.allRoutes = allRoutes;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
     this.create = create;
   }
@@ -175,7 +170,7 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
     }
     if (container?.env?.length) {
-      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace, this.linker) });
+      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace) });
     }
     if (container?.volumeMounts?.length) {
       sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });
@@ -192,10 +187,6 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
   }
 
   toStatusComponent(): Component<any> {
-    const { metadata, status } = this.configuration;
-
-    let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
-
     const summary = new SummaryFactory({
       sections: [
         { header: "Conditions", content: this.toConditionsListComponent() },
@@ -224,7 +215,6 @@ export class ConfigurationSummaryFactory implements ComponentFactory<any> {
       childDeployments: this.childDeployments,
       allRoutes: this.allRoutes,
       context: { apiVersion: ServingV1, kind: ServingV1Configuration, name: this.configuration.metadata.name },
-      linker: this.linker,
       factoryMetadata: {
         title: [new TextFactory({ value: "Revisions" }).toComponent()],
       },

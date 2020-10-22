@@ -7,12 +7,14 @@
 // objects that Octant can render to components.
 import * as h from "@project-octant/plugin/helpers";
 
-import { V1ContainerPort, V1EnvVar, V1ObjectMeta, V1ObjectReference, V1PodTemplateSpec, V1VolumeMount } from "@kubernetes/client-node";
+import { V1ContainerPort, V1EnvVar, V1ObjectMeta, V1PodTemplateSpec, V1VolumeMount } from "@kubernetes/client-node";
 import { TextFactory } from "@project-octant/plugin/components/text";
 import { Component } from "@project-octant/plugin/components/component";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 import { ListFactory } from "@project-octant/plugin/components/list";
 import { Condition } from "./conditions";
+
+import ctx from "../context";
 
 export interface PodSpecable {
   apiVersion: string;
@@ -36,7 +38,7 @@ export function containerPorts(ports?: V1ContainerPort[]): Component<any> {
   }).toComponent();
 }
 
-export function environmentList(env: V1EnvVar[] | undefined, namespace: string | undefined, linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string): Component<any> {
+export function environmentList(env: V1EnvVar[] | undefined, namespace: string | undefined): Component<any> {
   const columns = {
     name: 'Name',
     value: 'Value',
@@ -68,12 +70,12 @@ export function environmentList(env: V1EnvVar[] | undefined, namespace: string |
     } else if (e.valueFrom?.secretKeyRef) {
       row.data[columns.source] = new LinkFactory({
         value: `${e.valueFrom.secretKeyRef.name}:${e.valueFrom.secretKeyRef.key}`,
-        ref: linker({ apiVersion: "v1", kind: "Secret", namespace, name: e.valueFrom.secretKeyRef.name }),
+        ref: ctx.linker({ apiVersion: "v1", kind: "Secret", namespace, name: e.valueFrom.secretKeyRef.name }),
       });
     } else if (e.valueFrom?.configMapKeyRef) {
       row.data[columns.source] = new LinkFactory({
         value: `${e.valueFrom.configMapKeyRef.name}:${e.valueFrom.configMapKeyRef.key}`,
-        ref: linker({ apiVersion: "v1", kind: "ConfigMap", namespace, name: e.valueFrom.configMapKeyRef.name }),
+        ref: ctx.linker({ apiVersion: "v1", kind: "ConfigMap", namespace, name: e.valueFrom.configMapKeyRef.name }),
       });
     }
 

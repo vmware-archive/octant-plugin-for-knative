@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node";
+import { V1ObjectMeta } from "@kubernetes/client-node";
 
 // components
 import { AnnotationsFactory } from "@project-octant/plugin/components/annotations";
@@ -14,6 +14,8 @@ import { SummaryFactory } from "@project-octant/plugin/components/summary";
 import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { LinkFactory } from "@project-octant/plugin/components/link";
 
+import ctx from "../context";
+
 export interface RuntimeObject {
   apiVersion: string;
   kind: string;
@@ -22,18 +24,15 @@ export interface RuntimeObject {
 
 interface MetadataSummaryParameters {
   object: RuntimeObject;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class MetadataSummaryFactory implements ComponentFactory<any> {
   private readonly object: RuntimeObject;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ object, linker, factoryMetadata }: MetadataSummaryParameters) {
+  constructor({ object, factoryMetadata }: MetadataSummaryParameters) {
     this.object = object;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -76,7 +75,7 @@ export class MetadataSummaryFactory implements ComponentFactory<any> {
           header: "Controlled By",
           content: new LinkFactory({
             value: owner.name,
-            ref: this.linker({
+            ref: ctx.linker({
               apiVersion: owner.apiVersion,
               kind: owner.kind,
               namespace: this.object.metadata.namespace || "",

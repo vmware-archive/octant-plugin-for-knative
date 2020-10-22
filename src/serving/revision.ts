@@ -16,7 +16,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
-import { linker } from "../components/linker";
 import { RuntimeObject } from "../components/metadata";
 import { containerPorts, environmentList, volumeMountList } from "../components/pod";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
@@ -26,6 +25,8 @@ import { TimestampFactory } from "@project-octant/plugin/components/timestamp";
 import { V1Pod, V1ObjectReference, V1Deployment } from "@kubernetes/client-node";
 import { ServingV1, ServingV1Revision, ServingV1Route, Revision, Route } from "./api";
 
+import ctx from "../context";
+
 interface RevisionListParameters {
   revisions: Revision[];
   latestCreatedRevision?: string;
@@ -33,7 +34,6 @@ interface RevisionListParameters {
   childDeployments?: {[key: string]: V1Deployment};
   allRoutes?: Route[];
   context: V1ObjectReference;
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
@@ -44,17 +44,15 @@ export class RevisionListFactory implements ComponentFactory<any> {
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly allRoutes?: Route[];
   private readonly context: V1ObjectReference;
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revisions, latestCreatedRevision, latestReadyRevision, childDeployments, allRoutes, context, linker, factoryMetadata }: RevisionListParameters) {
+  constructor({ revisions, latestCreatedRevision, latestReadyRevision, childDeployments, allRoutes, context, factoryMetadata }: RevisionListParameters) {
     this.revisions = revisions;
     this.latestCreatedRevision = latestCreatedRevision;
     this.latestReadyRevision = latestReadyRevision;
     this.childDeployments = childDeployments
     this.allRoutes = allRoutes;
     this.context = context;
-    this.linker = linker
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -99,7 +97,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
           if (t.revisionName == revision.metadata.name) {
             traffic.push(new LinkFactory({
               value: `${route.metadata.name} @ ${t.percent || 0}%`,
-              ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: route.metadata.name }),
+              ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Route, name: route.metadata.name }),
             }).toComponent());
           }
         }
@@ -119,7 +117,7 @@ export class RevisionListFactory implements ComponentFactory<any> {
                     width: pills ? h.Width.Half : h.Width.Full,
                     view: new LinkFactory({
                       value: metadata.name || '',
-                      ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
+                      ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: metadata.name }, this.context),
                       options: {
                         status: ready.statusCode(),
                         statusDetail: ready.toComponent(),
@@ -178,7 +176,6 @@ interface RevisionDetailParameters {
   revision: Revision;
   childDeployment?: V1Deployment;
   pods: V1Pod[];
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
@@ -186,14 +183,12 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
   private readonly revision: Revision;
   private readonly childDeployment?: V1Deployment;
   private readonly pods: V1Pod[];
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ revision, childDeployment, pods, linker, factoryMetadata }: RevisionDetailParameters) {
+  constructor({ revision, childDeployment, pods, factoryMetadata }: RevisionDetailParameters) {
     this.revision = revision;
     this.childDeployment = childDeployment;
     this.pods = pods;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -232,7 +227,7 @@ export class RevisionSummaryFactory implements ComponentFactory<any> {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
     }
     if (container?.env?.length) {
-      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace, this.linker) });
+      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace) });
     }
     if (container?.volumeMounts?.length) {
       sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { V1ObjectReference } from "@kubernetes/client-node";
-
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
@@ -16,6 +14,8 @@ import { ConditionSummaryFactory } from "./conditions";
 import { RuntimeObject } from "./metadata";
 
 export { ResourceViewerConfig };
+
+import ctx from "../context";
 
 export interface Node {
   name?: string;
@@ -33,21 +33,18 @@ export interface Edge {
 
 interface KnativeResourceViewerParameters {
   self: RuntimeObject;
-  linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class KnativeResourceViewerFactory implements ComponentFactory<ResourceViewerConfig> {
   private readonly self: RuntimeObject;
-  private readonly linker: (ref: V1ObjectReference, context?: V1ObjectReference) => string;
   private readonly factoryMetadata?: FactoryMetadata;
 
   private readonly nodes: {[key: string]: Node};
   private readonly edges: {[key: string]: Edge[]};
 
-  constructor({ self, linker, factoryMetadata }: KnativeResourceViewerParameters) {
+  constructor({ self, factoryMetadata }: KnativeResourceViewerParameters) {
     this.self = self;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
 
     this.nodes = {};
@@ -67,7 +64,7 @@ export class KnativeResourceViewerFactory implements ComponentFactory<ResourceVi
     ];
     const link = new LinkFactory({
       value: obj.metadata.name || "",
-      ref: this.linker({
+      ref: ctx.linker({
         apiVersion: obj.apiVersion,
         kind: obj.kind,
         name: obj.metadata.name,

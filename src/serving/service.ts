@@ -18,7 +18,6 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
-import { linker } from "../components/linker";
 import { ListFactory } from "@project-octant/plugin/components/list";
 import { containerPorts, environmentList, volumeMountList } from "../components/pod";
 import { KnativeResourceViewerFactory, ResourceViewerConfig, Node, Edge } from "../components/resource-viewer";
@@ -31,6 +30,8 @@ import { ServingV1, ServingV1Service, ServingV1Revision, ServingV1Configuration,
 import { configureAction } from "./configuration";
 import { RevisionListFactory,  } from "./revision";
 import { TrafficPolicyTableFactory } from "./route";
+
+import ctx from "../context";
 
 
 
@@ -119,20 +120,17 @@ export class NewServiceFactory implements ComponentFactory<any> {
 interface ServiceListParameters {
   services: Service[];
   buttonGroup?: ButtonGroupFactory;
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceListFactory implements ComponentFactory<any> {
   private readonly services: Service[];
   private readonly buttonGroup?: ButtonGroupFactory;
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ services, buttonGroup, linker, factoryMetadata }: ServiceListParameters) {
+  constructor({ services, buttonGroup, factoryMetadata }: ServiceListParameters) {
     this.services = services;
     this.buttonGroup = buttonGroup;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
   }
   
@@ -168,7 +166,7 @@ export class ServiceListFactory implements ComponentFactory<any> {
         {
           [columns.name]: new LinkFactory({
             value: metadata.name || '',
-            ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
+            ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }),
             options: {
               status: ready.statusCode(),
               statusDetail: ready.toComponent(),
@@ -178,10 +176,10 @@ export class ServiceListFactory implements ComponentFactory<any> {
             ? new LinkFactory({ value: status.url, ref: status.url })
             : notFound,
           [columns.latestCreated]: status.latestCreatedRevisionName
-            ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) })
+            ? new LinkFactory({ value: status.latestCreatedRevisionName, ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestCreatedRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) })
             : notFound,
           [columns.latestReady]: status.latestReadyRevisionName
-            ? new LinkFactory({ value: status.latestReadyRevisionName, ref: this.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) })
+            ? new LinkFactory({ value: status.latestReadyRevisionName, ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Revision, name: status.latestReadyRevisionName }, { apiVersion: ServingV1, kind: ServingV1Service, name: metadata.name }) })
             : notFound,
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) }),
         },
@@ -206,9 +204,7 @@ interface ServiceDetailParameters {
   revisions: Revision[];
   childDeployments?: {[key: string]: V1Deployment};
   allRoutes?: Route[];
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
-  create?: boolean;
 }
 
 export class ServiceSummaryFactory implements ComponentFactory<any> {
@@ -216,18 +212,14 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
   private readonly revisions: Revision[];
   private readonly childDeployments?: {[key: string]: V1Deployment};
   private readonly allRoutes?: Route[];
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
-  private readonly create?: boolean;
 
-  constructor({ service, revisions, childDeployments, allRoutes, linker, factoryMetadata, create }: ServiceDetailParameters) {
+  constructor({ service, revisions, childDeployments, allRoutes, factoryMetadata }: ServiceDetailParameters) {
     this.service = service;
     this.revisions = revisions;
     this.childDeployments = childDeployments;
     this.allRoutes = allRoutes;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
-    this.create = create;
   }
   
   toComponent(): Component<any> {
@@ -251,7 +243,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
     const container = spec.template.spec?.containers[0];
 
     const actions = [];
-    if (this.create && !(metadata.ownerReferences || []).some(r => r.controller)) {
+    if (ctx.create && !(metadata.ownerReferences || []).some(r => r.controller)) {
       // only allow for non-controlled resources
       actions.push(configureAction(this.service));
     }
@@ -273,7 +265,7 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       sections.push({ header: "Container Ports", content: containerPorts(container?.ports) });
     }
     if (container?.env?.length) {
-      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace, this.linker) });
+      sections.push({ header: "Environment", content: environmentList(container?.env, metadata.namespace) });
     }
     if (container?.volumeMounts?.length) {
       sections.push({ header: "Volume Mounts", content: volumeMountList(container?.volumeMounts) });
@@ -329,7 +321,6 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       trafficPolicyStatus: this.service.status.traffic,
       latestRevision: this.service.status.latestReadyRevisionName,
       linkerContext: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
-      linker: this.linker,
     }).toComponent();
   }
 
@@ -341,7 +332,6 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
       childDeployments: this.childDeployments,
       allRoutes: this.allRoutes,
       context: { apiVersion: ServingV1, kind: ServingV1Service, name: this.service.metadata.name },
-      linker: this.linker,
       factoryMetadata: {
         title: [new TextFactory({ value: "Revisions" }).toComponent()],
       },
@@ -352,24 +342,18 @@ export class ServiceSummaryFactory implements ComponentFactory<any> {
 
 interface ServiceResourceViewerParameters {
   service: Service;
-  dashboardClient: octant.DashboardClient;
-  linker: linker;
   factoryMetadata?: FactoryMetadata;
 }
 
 export class ServiceResourceViewerFactory implements ComponentFactory<ResourceViewerConfig> {
   private readonly service: Service;
-  private readonly dashboardClient: octant.DashboardClient;
-  private readonly linker: linker;
   private readonly factoryMetadata?: FactoryMetadata;
 
   private readonly nodes: {[key: string]: Node};
   private readonly edges: {[key: string]: Edge[]};
 
-  constructor({ service, dashboardClient, linker, factoryMetadata }: ServiceResourceViewerParameters) {
+  constructor({ service, factoryMetadata }: ServiceResourceViewerParameters) {
     this.service = service;
-    this.dashboardClient = dashboardClient;
-    this.linker = linker;
     this.factoryMetadata = factoryMetadata;
 
     this.nodes = {};
@@ -377,7 +361,7 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
   }
 
   toComponent(): Component<ResourceViewerConfig> {
-    const rv = new KnativeResourceViewerFactory({ self: this.service, linker: this.linker, factoryMetadata: this.factoryMetadata });
+    const rv = new KnativeResourceViewerFactory({ self: this.service, factoryMetadata: this.factoryMetadata });
 
     // add service
     rv.addNode(this.service);
@@ -385,7 +369,7 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
     // add owners
     for (const ownerReference of this.service.metadata.ownerReferences || []) {
       try {
-        const owner = this.dashboardClient.Get({
+        const owner = ctx.dashboardClient.Get({
           apiVersion: ownerReference.apiVersion,
           kind: ownerReference.kind,
           namespace: this.service.metadata.namespace,
@@ -399,7 +383,7 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
 
     // add child configuration
     try {
-      const configurations: Configuration[] = this.dashboardClient.List({
+      const configurations: Configuration[] = ctx.dashboardClient.List({
         apiVersion: ServingV1,
         kind: ServingV1Configuration,
         namespace: this.service.metadata.namespace,
@@ -410,7 +394,7 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
 
         // add child revisions
         try {
-          const revisions: Revision[] = this.dashboardClient.List({
+          const revisions: Revision[] = ctx.dashboardClient.List({
             apiVersion: ServingV1,
             kind: ServingV1Revision,
             namespace: configuration.metadata.namespace,
@@ -434,7 +418,7 @@ export class ServiceResourceViewerFactory implements ComponentFactory<ResourceVi
 
     // add child route
     try {
-      const routes: Route[] = this.dashboardClient.List({
+      const routes: Route[] = ctx.dashboardClient.List({
         apiVersion: ServingV1,
         kind: ServingV1Route,
         namespace: this.service.metadata.namespace,
