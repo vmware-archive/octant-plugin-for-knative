@@ -58,7 +58,7 @@ export class NewServiceFactory implements ComponentFactory<any> {
       opened: false,
       factoryMetadata: this.factoryMetadata,
       options: {
-        body: new TextFactory({ value: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." }).toComponent(),
+        body: new TextFactory({ value: "To create a service using a container image, specify the name of the service and the image. Naming the revision is optional." }).toComponent(),
         form: {
           action: "knative.dev/newService",
           fields: [
