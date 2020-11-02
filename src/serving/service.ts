@@ -18,7 +18,7 @@ import { FlexLayoutFactory } from "@project-octant/plugin/components/flexlayout"
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
-import { ListFactory } from "@project-octant/plugin/components/list";
+import { ModalFactory } from "@project-octant/plugin/components/modal";
 import { containerPorts, environmentList, volumeMountList } from "../components/pod";
 import { KnativeResourceViewerFactory, ResourceViewerConfig, Node, Edge } from "../components/resource-viewer";
 import { SummaryFactory } from "@project-octant/plugin/components/summary";
@@ -46,74 +46,65 @@ export class NewServiceFactory implements ComponentFactory<any> {
 
   constructor({ clientID, factoryMetadata }: NewServiceParameters) {
     this.clientID = clientID;
-    this.factoryMetadata = factoryMetadata;
+    this.factoryMetadata = factoryMetadata || {
+      title: [
+        new TextFactory({ value: "New Service" }).toComponent(),
+      ],
+    };
   }
   
   toComponent(): Component<any> {
-    // TODO hack to render a form, any form. Replace with something real
-    const form = new SummaryFactory({
-      sections: [],
+    const modal = new ModalFactory({
+      opened: false,
+      factoryMetadata: this.factoryMetadata,
       options: {
-        actions: [
-          {
-            name: "Configure",
-            title: "Create Service",
-            form: {
-              fields: [
-                {
-                  type: "hidden",
-                  name: "action",
-                  value: "knative.dev/newService",
-                },
-                {
-                  type: "hidden",
-                  name: "clientID",
-                  value: this.clientID,
-                },
-                {
-                  type: "text",
-                  name: "name",
-                  value: "",
-                  label: "Name",
-                  placeholder: "my-service",
-                  error: "Service name is required.",
-                  validators: [
-                    "required"
-                  ],
-                  configuration: {},
-                },
-                {
-                  type: "text",
-                  name: "revisionName",
-                  value: "",
-                  label: "Revision Name",
-                  placeholder: "v2",
-                  configuration: {},
-                },
-                {
-                  type: "text",
-                  name: "image",
-                  value: "",
-                  label: "Image",
-                  placeholder: "docker.io/example/app",
-                  error: "Image name is required.",
-                  validators: [
-                    "required"
-                  ],
-                  configuration: {},
-                },
-              ],
+        body: new TextFactory({ value: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat." }).toComponent(),
+        form: {
+          action: "knative.dev/newService",
+          fields: [
+            {
+              type: "hidden",
+              name: "clientID",
+              value: this.clientID,
             },
-            modal: false,
-          },
-        ],
+            {
+              type: "text",
+              name: "name",
+              value: "",
+              label: "Name",
+              placeholder: "my-service",
+              error: "Service name is required.",
+              validators: [
+                "required"
+              ],
+              configuration: {},
+            },
+            {
+              type: "text",
+              name: "revisionName",
+              value: "",
+              label: "Revision Name",
+              placeholder: "v2",
+              configuration: {},
+            },
+            {
+              type: "text",
+              name: "image",
+              value: "",
+              label: "Image",
+              placeholder: "docker.io/example/app",
+              error: "Image name is required.",
+              validators: [
+                "required"
+              ],
+              configuration: {},
+            },
+          ],
+        },
       },
     });
-    const layout = new ListFactory({
-      items: [form.toComponent()],
-      factoryMetadata: this.factoryMetadata,
-    });
-    return layout.toComponent();
+
+    return modal.toComponent();
   }
 }
 

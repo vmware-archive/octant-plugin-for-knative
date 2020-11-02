@@ -29,7 +29,6 @@ import {
   configurationListingContentHandler,
   configureActionHandler,
   newServiceActionHandler,
-  newServiceContentHandler,
   revisionDetailContentHandler,
   revisionListContentHandler,
   routeDetailContentHandler,
@@ -86,7 +85,6 @@ export default class KnativePlugin implements octant.Plugin {
     }]);
     this.router.add([{ path: "/serving", handler: servingOverviewContentHandler }]);
     this.router.add([{ path: "/serving/services", handler: serviceListingContentHandler }]);
-    this.router.add([{ path: "/serving/services/_new", handler: newServiceContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName", handler: serviceDetailContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName/revisions", handler: revisionListContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName/revisions/:revisionName", handler: revisionDetailContentHandler }]);

@@ -122,18 +122,6 @@ export function serviceListingContentHandler(params: any): octant.ContentRespons
   return h.createContentResponse(title, [body]);
 }
 
-// form to create a new service
-export function newServiceContentHandler(params: any): octant.ContentResponse {
-  const title = [
-    new LinkFactory({ value: "Knative", ref: "/knative" }),
-    new LinkFactory({ value: "Serving", ref: ctx.linker({ apiVersion: ServingV1 }) }),
-    new LinkFactory({ value: "Services", ref: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Service }) }),
-    new TextFactory({ value: "New Service" }),
-  ];
-  const body = newService(params.clientID, { title: title.map(c => c.toComponent()) });
-  return h.createContentResponse(title, body);
-}
-
 export function serviceDetailContentHandler(params: any): octant.ContentResponse {
   const name: string = params.serviceName;
   const service: Service = ctx.dashboardClient.Get({
@@ -366,23 +354,14 @@ export function serviceListing(clientID: string, factoryMetadata?: FactoryMetada
     buttons: [
       {
         name: "New Service",
-        payload: {
-          action: "knative.dev/setContentPath",
-          clientID: clientID,
-          contentPath: ctx.linker({ apiVersion: ServingV1, kind: ServingV1Service, name: "_new" }),
-        },
+        payload: {},
+        modal: new NewServiceFactory({ clientID }).toComponent(),
       },
     ],
     factoryMetadata,
   }) : void 0;
 
   return new ServiceListFactory({ services, buttonGroup, factoryMetadata });
-}
-
-export function newService(clientID: string, factoryMetadata?: FactoryMetadata ): ComponentFactory<any>[] {
-  const form = new NewServiceFactory({ clientID, factoryMetadata });
-  
-  return [form];
 }
 
 export function serviceDetail(service: Service): ComponentFactory<any>[] {
