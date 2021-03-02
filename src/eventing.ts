@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2020 the Octant contributors. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import YAML from "yaml";
+
 // plugin contains interfaces your plugin can expect
 // this includes your main plugin class, response, requests, and clients.
 import * as octant from "@project-octant/plugin";
@@ -14,7 +21,7 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 import ctx from "./context";
 import { V1CustomResourceDefinition, V1ObjectReference } from "@kubernetes/client-node";
 import { EventingV1, Source, SourcesV1 } from "./eventing/api";
-import { SourceListFactory, TypedSourceListFactory } from "./eventing/source";
+import { SourceListFactory, SourceSummaryFactory, TypedSourceListFactory } from "./eventing/source";
 import {
   ClusterDuckType,
   ClusterDuckTypeTableFactory,
@@ -23,6 +30,8 @@ import {
   ResourceMeta,
   SourcesDuck,
 } from "./components/discovery";
+import { MetadataSummaryFactory } from "./components/metadata";
+import { EditorFactory } from "@project-octant/plugin/components/editor";
 
 export function sourcesListingContentHandler(params: any): octant.ContentResponse {
 
@@ -90,7 +99,8 @@ export function sourceDetailContentHandler(params: any): octant.ContentResponse 
     new TextFactory({ value: name })
   ]
 
-  return h.createContentResponse(title, [new TextFactory({ value: "" })])
+  const body = sourceDetail(source)
+  return h.createContentResponse(title, body)
 }
 
 function sourceTypeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
@@ -166,4 +176,39 @@ function typedSourceListing(sourceType: string, factoryMetadata?: FactoryMetadat
   var sources: Source[] = []
 
   return new TypedSourceListFactory({ sources, additionalColumns, factoryMetadata })
+}
+
+function sourceDetail(source: Source): ComponentFactory<any>[] {
+  return [
+    new SourceSummaryFactory({
+      source,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Summary" }).toComponent()],
+        accessor: "summary",
+      },
+    }),
+    new MetadataSummaryFactory({
+      object: source,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Metadata" }).toComponent()],
+        accessor: "metadata",
+      }
+    }),
+    new EditorFactory({
+      value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(source)), { sortMapEntries: true }),
+      language: 'yaml',
+      readOnly: false,
+      metadata: {
+        apiVersion: source.apiVersion,
+        kind: source.kind,
+        namespace: source.metadata.namespace || '',
+        name: source.metadata.name || '',
+      },
+      factoryMetadata: {
+        title: [new TextFactory({ value: "YAML" }).toComponent()],
+        accessor: "yaml",
+      },
+    })
+
+  ]
 }

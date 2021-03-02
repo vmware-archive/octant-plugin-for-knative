@@ -24,9 +24,14 @@ export interface Source {
       }
       uri?: string;
     };
+    ceOverrides?: {
+      extensions: { [key: string]: string };
+    }
   };
   status: {
     conditions?: Condition[];
     observedGeneration: number;
+    ceAttributes: { type: string; source: string; }[];
+    sinkURI?: string;
   };
 }

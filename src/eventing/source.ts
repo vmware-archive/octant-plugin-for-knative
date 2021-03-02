@@ -12,7 +12,7 @@ import * as h from "@project-octant/plugin/helpers";
 // components
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
-import { ConditionSummaryFactory, } from "../components/conditions";
+import { ConditionListFactory, ConditionSummaryFactory, } from "../components/conditions";
 import { GridActionsFactory } from "@project-octant/plugin/components/grid-actions";
 import { deleteGridAction } from "../components/grid-actions";
 import { LinkFactory } from "@project-octant/plugin/components/link";
@@ -175,7 +175,7 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
         sections: [
           [
             { view: this.toSpecComponent(), width: h.Width.Full },
-            // { view: this.toStatusComponent(), width: h.Width.Full },
+            { view: this.toStatusComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -188,7 +188,55 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
     const { metadata, spec } = this.source;
     const sink = spec.sink
 
-    const sections: ({ header: string; content: Component<any> })[] = [];
+    const sections: { header: string, content: Component<any> }[] = [];
+
+    // TODO: Add SourceType specific spec/status information using OpenAPISchema from CRD
+    if (sink.ref) {
+      const columns = {
+        key: 'Key',
+        value: 'Value'
+      }
+      const table = new h.TableFactoryBuilder([], [])
+      table.title = [new TextFactory({ value: "Ref" })]
+      table.columns = [
+        columns.key,
+        columns.value,
+      ];
+
+      const kind = new h.TableRow(
+        {
+          [columns.key]: new TextFactory({ value: "kind" }),
+          [columns.value]: new TextFactory({ value: sink.ref.kind })
+        }
+      )
+      const namespace = new h.TableRow(
+        {
+          [columns.key]: new TextFactory({ value: "namespace" }),
+          [columns.value]: new TextFactory({ value: sink.ref.namespace ? sink.ref.namespace : ctx.namespace })
+        }
+      )
+      const name = new h.TableRow(
+        {
+          [columns.key]: new TextFactory({ value: "name" }),
+          [columns.value]: new TextFactory({ value: sink.ref.name })
+        }
+      )
+      const apiVersion = new h.TableRow(
+        {
+          [columns.key]: new TextFactory({ value: "apiVersion" }),
+          [columns.value]: new TextFactory({ value: sink.ref.apiVersion })
+        }
+      )
+      table.push(kind);
+      table.push(namespace);
+      table.push(name);
+      table.push(apiVersion);
+
+      sections.push({ header: "Sink", content: table.getFactory().toComponent() })
+    }
+    if (sink.uri) {
+      sections.push({ header: "Sink", content: new TextFactory({ value: sink.uri }).toComponent() })
+    }
 
     const summary = new SummaryFactory({
       sections,
@@ -198,5 +246,60 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
     })
 
     return summary.toComponent();
+  };
+
+  toStatusComponent(): Component<any> {
+    const { status } = this.source;
+
+    const sections: { header: string, content: Component<any> }[] = [];
+    sections.push({ header: "CloudEvent Attributes", content: this.toCEAttributesListComponent() })
+    sections.push({ header: "Conditions", content: this.toConditionsListComponent() });
+
+    const summary = new SummaryFactory({
+      sections,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Status" }).toComponent()],
+      }
+    })
+    return summary.toComponent();
+  };
+
+  toCEAttributesListComponent(): Component<any> {
+    const { status } = this.source
+    const columns = {
+      type: 'Type',
+      source: 'Source'
+    }
+    const table = new h.TableFactoryBuilder([], [])
+    table.columns = [
+      columns.type,
+      columns.source,
+    ];
+
+    table.emptyContent = "There are no CloudEvent attributes!"
+    table.loading = false
+
+    status.ceAttributes.sort((a, b) => a.type.localeCompare(b.type))
+
+    for (const ceAttribute of status.ceAttributes) {
+      const { type, source } = ceAttribute
+      const row = new h.TableRow(
+        {
+          [columns.type]: new TextFactory({ value: type }),
+          [columns.source]: new TextFactory({ value: source })
+        }
+      )
+      table.push(row);
+    }
+    return table.getFactory().toComponent()
+  }
+
+  toConditionsListComponent(): Component<any> {
+    return new ConditionListFactory({
+      conditions: this.source.status.conditions || [],
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Conditions" }).toComponent()],
+      },
+    }).toComponent();
   };
 }
