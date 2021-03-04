@@ -7,7 +7,8 @@
 import { V1ObjectMeta } from "@kubernetes/client-node";
 import { Condition } from "../components/conditions";
 
-export const EventingSourceV1 = "sources.knative.dev/v1beta2"
+export const EventingV1 = "eventing.knative.dev/v1"
+export const SourcesV1 = "sources.knative.dev/v1"
 
 export interface Source {
   apiVersion: string;

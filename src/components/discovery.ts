@@ -7,7 +7,8 @@
 // objects that Octant can render to components.
 import * as h from "@project-octant/plugin/helpers";
 
-import { V1ObjectMeta } from "@kubernetes/client-node"
+import ctx from "../context";
+import { V1ObjectMeta, V1ObjectReference } from "@kubernetes/client-node"
 import { Component } from "@project-octant/plugin/components/component"
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory"
 import { TextFactory } from "@project-octant/plugin/components/text";
@@ -27,7 +28,7 @@ export interface ClusterDuckType {
   kind: string;
   metadata: V1ObjectMeta;
   spec: {
-    versions: Array<{ name: string; }>;
+    versions: { name: string; }[];
     names: {
       plural: string;
     }
@@ -41,17 +42,20 @@ export interface ClusterDuckType {
 
 export const SourcesDuck = "sources.duck.knative.dev"
 
-interface ClusterDuckTypeListParameters {
+interface ClusterDuckTypeTableParameters {
   duckTypes: ClusterDuckType;
+  ref?: V1ObjectMeta;
   factoryMetadata?: FactoryMetadata;
 }
 
-export class ClusterDuckTypeListFactory implements ComponentFactory<any> {
+export class ClusterDuckTypeTableFactory implements ComponentFactory<any> {
   private readonly duckTypes: ClusterDuckType;
+  private readonly ref?: V1ObjectReference
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ duckTypes, factoryMetadata }: ClusterDuckTypeListParameters) {
+  constructor({ duckTypes, ref, factoryMetadata }: ClusterDuckTypeTableParameters) {
     this.duckTypes = duckTypes;
+    this.ref = ref;
     this.factoryMetadata = factoryMetadata;
   }
 
@@ -71,18 +75,18 @@ export class ClusterDuckTypeListFactory implements ComponentFactory<any> {
     table.emptyContent = `There are no ${spec.names.plural}!`;
     // TODO: this should be handled externally
     const duckVersions = versions.reduce((acc: ResourceMeta[], cur) => acc.concat(status.ducks[cur.name]), [])
-    duckVersions.sort((a, b) => apiVersionCompare(a.apiVersion, b.apiVersion))
-    duckVersions.reverse()
-    const sortedVersions = duckVersions.filter((val, idx, arr) => arr.findIndex(v => val.kind == v.kind) === idx)
-    sortedVersions.sort((a, b) => a.kind.localeCompare(b.kind))
+    const latestVersions = latestDuckTypeVersions(duckVersions)
+    latestVersions.sort((a, b) => a.kind.localeCompare(b.kind))
 
-    for (const duck of sortedVersions) {
+    for (const duck of latestVersions) {
       const { apiVersion, kind } = duck
+      // TODO consider using the builtin octant CRD to link to
+      const ref: V1ObjectReference = { apiVersion: this.ref?.apiVersion, name: kind }
 
       const row = new h.TableRow({
         [columns.type]: new LinkFactory({
           value: kind,
-          ref: `/knative/eventing/${spec.names.plural}/${kind}`
+          ref: ctx.linker(ref),
         }),
         [columns.version]: new TextFactory({ value: apiVersion })
       })
@@ -92,6 +96,12 @@ export class ClusterDuckTypeListFactory implements ComponentFactory<any> {
 
     return table.getFactory().toComponent();
   }
+}
+
+function latestDuckTypeVersions(duckVersions: ResourceMeta[]): ResourceMeta[] {
+    duckVersions.sort((a, b) => apiVersionCompare(a.apiVersion, b.apiVersion))
+    duckVersions.reverse()
+    return duckVersions.filter((val, idx, arr) => idx === arr.findIndex(v => val.kind === v.kind))
 }
 
 function apiVersionCompare(a: string, b: string): number {

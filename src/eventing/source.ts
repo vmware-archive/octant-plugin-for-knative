@@ -46,6 +46,7 @@ export class SourceListFactory implements ComponentFactory<any> {
       name: 'Name',
       type: 'Type',
       sink: 'Sink',
+      sinkType: 'Sink Type',
       age: 'Age',
     };
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
@@ -53,6 +54,7 @@ export class SourceListFactory implements ComponentFactory<any> {
       columns.name,
       columns.type,
       columns.sink,
+      columns.sinkType,
       columns.age,
     ];
     table.loading = false;
@@ -89,6 +91,11 @@ export class SourceListFactory implements ComponentFactory<any> {
             ? new LinkFactory({
               value: sink.ref.name,
               ref: ctx.linker(sink.ref)
+            })
+            : sink.uri ? new TextFactory({ value: sink.uri }) : notFound,
+          [columns.sinkType]: sink.ref
+            ? new TextFactory({
+              value: `${sink.ref.kind.toLowerCase()}s.${sink.ref.apiVersion.split("/")[0]}`,
             })
             : notFound,
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) })
@@ -181,9 +188,7 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
     const { metadata, spec } = this.source;
     const sink = spec.sink
 
-    const sections = [];
-    Object.entries(spec).forEach(k => console.log(k))
-    sections.push({ header: "FOO", content: new TextFactory({ value: "bar" }).toComponent() })
+    const sections: ({ header: string; content: Component<any> })[] = [];
 
     const summary = new SummaryFactory({
       sections,

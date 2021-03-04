@@ -145,6 +145,13 @@ export default class KnativePlugin implements octant.Plugin {
       return h.createContentResponse([], []);
     }
 
+    if (contentPath == "/eventing") {
+      // TODO return overiview handler when it exists
+
+      // redirect to sources in the interim
+      ctx.dashboardClient.SendEvent(clientID, "event.octant.dev/contentPath", { contentPath: "/knative/eventing/sources"})
+    }
+
     const results: any = this.router.recognize(contentPath);
     if (!results) {
       // not found
