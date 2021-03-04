@@ -192,47 +192,7 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
 
     // TODO: Add SourceType specific spec/status information using OpenAPISchema from CRD
     if (sink.ref) {
-      const columns = {
-        key: 'Key',
-        value: 'Value'
-      }
-      const table = new h.TableFactoryBuilder([], [])
-      table.title = [new TextFactory({ value: "Ref" })]
-      table.columns = [
-        columns.key,
-        columns.value,
-      ];
-
-      const kind = new h.TableRow(
-        {
-          [columns.key]: new TextFactory({ value: "kind" }),
-          [columns.value]: new TextFactory({ value: sink.ref.kind })
-        }
-      )
-      const namespace = new h.TableRow(
-        {
-          [columns.key]: new TextFactory({ value: "namespace" }),
-          [columns.value]: new TextFactory({ value: sink.ref.namespace ? sink.ref.namespace : ctx.namespace })
-        }
-      )
-      const name = new h.TableRow(
-        {
-          [columns.key]: new TextFactory({ value: "name" }),
-          [columns.value]: new TextFactory({ value: sink.ref.name })
-        }
-      )
-      const apiVersion = new h.TableRow(
-        {
-          [columns.key]: new TextFactory({ value: "apiVersion" }),
-          [columns.value]: new TextFactory({ value: sink.ref.apiVersion })
-        }
-      )
-      table.push(kind);
-      table.push(namespace);
-      table.push(name);
-      table.push(apiVersion);
-
-      sections.push({ header: "Sink", content: table.getFactory().toComponent() })
+      sections.push({ header: "Sink", content: this.toRefTableComponent() })
     }
     if (sink.uri) {
       sections.push({ header: "Sink", content: new TextFactory({ value: sink.uri }).toComponent() })
@@ -263,6 +223,52 @@ export class SourceSummaryFactory implements ComponentFactory<any> {
     })
     return summary.toComponent();
   };
+
+  toRefTableComponent(): Component<any> {
+    const ref = this.source.spec.sink.ref!
+
+    const columns = {
+      key: 'Key',
+      value: 'Value'
+    }
+    const table = new h.TableFactoryBuilder([], [])
+    table.title = [new TextFactory({ value: "Ref" })]
+    table.columns = [
+      columns.key,
+      columns.value,
+    ];
+
+    const kind = new h.TableRow(
+      {
+        [columns.key]: new TextFactory({ value: "kind" }),
+        [columns.value]: new TextFactory({ value: ref.kind })
+      }
+    )
+    const namespace = new h.TableRow(
+      {
+        [columns.key]: new TextFactory({ value: "namespace" }),
+        [columns.value]: new TextFactory({ value: ref.namespace ? ref.namespace : ctx.namespace })
+      }
+    )
+    const name = new h.TableRow(
+      {
+        [columns.key]: new TextFactory({ value: "name" }),
+        [columns.value]: new TextFactory({ value: ref.name })
+      }
+    )
+    const apiVersion = new h.TableRow(
+      {
+        [columns.key]: new TextFactory({ value: "apiVersion" }),
+        [columns.value]: new TextFactory({ value: ref.apiVersion })
+      }
+    )
+    table.push(kind);
+    table.push(namespace);
+    table.push(name);
+    table.push(apiVersion);
+
+    return table.getFactory().toComponent();
+  }
 
   toCEAttributesListComponent(): Component<any> {
     const { status } = this.source
