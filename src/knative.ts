@@ -37,6 +37,11 @@ import {
   serviceListingContentHandler,
   servingOverviewContentHandler,
 } from "./serving";
+import {
+  sourceDetailContentHandler,
+  sourcesListingContentHandler,
+  sourceTypeListingContentHandler,
+} from "./eventing";
 
 import ctx from "./context";
 
@@ -83,6 +88,9 @@ export default class KnativePlugin implements octant.Plugin {
         return h.createContentResponse([], []);
       }
     }]);
+    this.router.add([{ path: "/eventing/sources", handler: sourcesListingContentHandler }]);
+    this.router.add([{ path: "/eventing/sources/:sourceType", handler: sourceTypeListingContentHandler }]);
+    this.router.add([{ path: "/eventing/sources/:sourceType/:sourceName", handler: sourceDetailContentHandler }]);
     this.router.add([{ path: "/serving", handler: servingOverviewContentHandler }]);
     this.router.add([{ path: "/serving/services", handler: serviceListingContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName", handler: serviceDetailContentHandler }]);
@@ -137,6 +145,13 @@ export default class KnativePlugin implements octant.Plugin {
       return h.createContentResponse([], []);
     }
 
+    if (contentPath == "/eventing") {
+      // TODO return overiview handler when it exists
+
+      // redirect to sources in the interim
+      ctx.dashboardClient.SendEvent(clientID, "event.octant.dev/contentPath", { contentPath: "/knative/eventing/sources"})
+    }
+
     const results: any = this.router.recognize(contentPath);
     if (!results) {
       // not found
@@ -160,6 +175,7 @@ export default class KnativePlugin implements octant.Plugin {
     nav.add("Services", "serving/services");
     nav.add("Configurations", "serving/configurations");
     nav.add("Routes", "serving/routes");
+    nav.add("Sources", "eventing/sources");
     return nav;
   }
 
