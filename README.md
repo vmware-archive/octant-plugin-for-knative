@@ -13,6 +13,7 @@ Runtime prerequisites:
 - Knative Serving 0.16+
 - Knative Eventing 0.19.3+
 - Knative Discovery API v0.20.0+
+  - With knative source cluster duck type installed
 
 Using the [latest release](https://github.com/vmware-tanzu/octant-plugin-for-knative/releases/latest) is recommended.
 
