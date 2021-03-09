@@ -20,7 +20,7 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 
 import ctx from "./context";
 import { V1CustomResourceDefinition, V1ObjectReference } from "@kubernetes/client-node";
-import { EventingV1, Source, SourcesV1 } from "./eventing/api";
+import { Broker, EventingV1, EventingV1Broker, Source, SourcesV1 } from "./eventing/api";
 import { SourceListFactory, SourceSummaryFactory, TypedSourceListFactory } from "./eventing/source";
 import {
   ClusterDuckType,
@@ -32,9 +32,50 @@ import {
 } from "./components/discovery";
 import { MetadataSummaryFactory } from "./components/metadata";
 import { EditorFactory } from "@project-octant/plugin/components/editor";
+import { BrokerListFactory, BrokerSummaryFactory } from "./eventing/broker";
+
+export function brokerListingContentHandler(params: any): octant.ContentResponse {
+  const title = [
+    new LinkFactory({ value: "Knative", ref: "/knative" }),
+    new LinkFactory({ value: "Eventing", ref: ctx.linker({ apiVersion: EventingV1 }) }),
+    new TextFactory({ value: "Brokers" })
+  ];
+  const body = new ListFactory({
+    factoryMetadata: {
+      title: title.map(f => f.toComponent()),
+    },
+    items: [
+      brokerListing({
+        title: [new TextFactory({ value: "Brokers" }).toComponent()]
+      }).toComponent(),
+    ],
+  });
+  return h.createContentResponse(title, [body]);
+}
+
+export function brokerDetailContentHandler(params: any): octant.ContentResponse {
+  const namespace: string = params.namespace || ctx.namespace
+  const name: string = params.brokerName;
+
+  const broker: Broker = ctx.dashboardClient.Get({
+    apiVersion: EventingV1,
+    kind: EventingV1Broker,
+    name: name,
+    namespace: namespace,
+  })
+
+  const title = [
+    new LinkFactory({ value: "Knative", ref: "/knative" }),
+    new LinkFactory({ value: "Eventing", ref: ctx.linker({ apiVersion: EventingV1 }) }),
+    new LinkFactory({ value: "Brokers", ref: ctx.linker({ apiVersion: EventingV1Broker }) }),
+    new TextFactory({ value: name })
+  ]
+
+  const body = brokerDetail(broker)
+  return h.createContentResponse(title, body)
+}
 
 export function sourcesListingContentHandler(params: any): octant.ContentResponse {
-
 
   const title = [
     new LinkFactory({ value: "Knative", ref: "/knative" }),
@@ -109,9 +150,22 @@ function sourceTypeListing(factoryMetadata?: FactoryMetadata): ComponentFactory<
     kind: DiscoveryV1AlphaClusterDuckType,
     name: SourcesDuck,
   })
-  const ref: V1ObjectReference = {apiVersion: SourcesV1}
+  const ref: V1ObjectReference = { apiVersion: SourcesV1 }
 
   return new ClusterDuckTypeTableFactory({ duckTypes, ref, factoryMetadata })
+}
+
+function brokerListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+
+  const brokers: Broker[] = ctx.dashboardClient.List({
+    apiVersion: EventingV1,
+    kind: EventingV1Broker,
+    namespace: ctx.namespace,
+  })
+
+  brokers.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
+
+  return new BrokerListFactory({ brokers, factoryMetadata })
 }
 
 // TODO: Simplify logic/ extract functions/methods
@@ -176,6 +230,41 @@ function typedSourceListing(sourceType: string, factoryMetadata?: FactoryMetadat
   var sources: Source[] = []
 
   return new TypedSourceListFactory({ sources, additionalColumns, factoryMetadata })
+}
+
+function brokerDetail(broker: Broker): ComponentFactory<any>[] {
+  return [
+    new BrokerSummaryFactory({
+      broker,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Summary" }).toComponent()],
+        accessor: "summary",
+      },
+    }),
+    new MetadataSummaryFactory({
+      object: broker,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Metadata" }).toComponent()],
+        accessor: "metadata",
+      }
+    }),
+    new EditorFactory({
+      value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(broker)), { sortMapEntries: true }),
+      language: 'yaml',
+      readOnly: false,
+      metadata: {
+        apiVersion: broker.apiVersion,
+        kind: broker.kind,
+        namespace: broker.metadata.namespace || '',
+        name: broker.metadata.name || '',
+      },
+      factoryMetadata: {
+        title: [new TextFactory({ value: "YAML" }).toComponent()],
+        accessor: "yaml",
+      },
+    })
+
+  ]
 }
 
 function sourceDetail(source: Source): ComponentFactory<any>[] {
