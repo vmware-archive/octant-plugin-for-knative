@@ -38,6 +38,8 @@ import {
   servingOverviewContentHandler,
 } from "./serving";
 import {
+  brokerDetailContentHandler,
+  brokerListingContentHandler,
   sourceDetailContentHandler,
   sourcesListingContentHandler,
   sourceTypeListingContentHandler,
@@ -91,6 +93,8 @@ export default class KnativePlugin implements octant.Plugin {
     this.router.add([{ path: "/eventing/sources", handler: sourcesListingContentHandler }]);
     this.router.add([{ path: "/eventing/sources/:sourceType", handler: sourceTypeListingContentHandler }]);
     this.router.add([{ path: "/eventing/sources/:sourceType/:sourceName", handler: sourceDetailContentHandler }]);
+    this.router.add([{ path: "/eventing/brokers", handler: brokerListingContentHandler }]);
+    this.router.add([{ path: "/eventing/brokers/:brokerName", handler: brokerDetailContentHandler }]);
     this.router.add([{ path: "/serving", handler: servingOverviewContentHandler }]);
     this.router.add([{ path: "/serving/services", handler: serviceListingContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName", handler: serviceDetailContentHandler }]);
@@ -149,7 +153,7 @@ export default class KnativePlugin implements octant.Plugin {
       // TODO return overiview handler when it exists
 
       // redirect to sources in the interim
-      ctx.dashboardClient.SendEvent(clientID, "event.octant.dev/contentPath", { contentPath: "/knative/eventing/sources"})
+      ctx.dashboardClient.SendEvent(clientID, "event.octant.dev/contentPath", { contentPath: "/knative/eventing/sources" })
     }
 
     const results: any = this.router.recognize(contentPath);
@@ -176,6 +180,7 @@ export default class KnativePlugin implements octant.Plugin {
     nav.add("Configurations", "serving/configurations");
     nav.add("Routes", "serving/routes");
     nav.add("Sources", "eventing/sources");
+    nav.add("Brokers", "eventing/brokers");
     return nav;
   }
 

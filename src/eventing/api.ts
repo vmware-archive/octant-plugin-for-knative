@@ -6,8 +6,10 @@
 
 import { V1ObjectMeta } from "@kubernetes/client-node";
 import { Condition } from "../components/conditions";
+import { KReference } from "../components/kreference";
 
 export const EventingV1 = "eventing.knative.dev/v1"
+export const EventingV1Broker = "Broker"
 export const SourcesV1 = "sources.knative.dev/v1"
 
 export interface Source {
@@ -16,12 +18,7 @@ export interface Source {
   metadata: V1ObjectMeta;
   spec: {
     sink: {
-      ref?: {
-        kind: string;
-        namespace?: string;
-        name: string;
-        apiVersion: string;
-      }
+      ref?: KReference;
       uri?: string;
     };
     ceOverrides?: {
@@ -33,5 +30,29 @@ export interface Source {
     observedGeneration: number;
     ceAttributes: { type: string; source: string; }[];
     sinkURI?: string;
+  };
+}
+
+export interface Broker {
+  apiVersion: string;
+  kind: string;
+  metadata: V1ObjectMeta;
+  spec: {
+    config?: KReference;
+    delivery?: {
+      deadLetterSink: {
+        ref?: KReference;
+        uri?: string;
+      }
+      retry?: number;
+      backoffPolicy?: string;
+      backoffDelay?: string;
+    }
+  }
+  status: {
+    conditions?: Condition[];
+    observedGeneration: number;
+    annotations?: { [key: string]: string };
+    address: { url: string };
   };
 }
