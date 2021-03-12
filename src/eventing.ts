@@ -20,7 +20,7 @@ import { TextFactory } from "@project-octant/plugin/components/text";
 
 import ctx from "./context";
 import { V1CustomResourceDefinition, V1ObjectReference } from "@kubernetes/client-node";
-import { Broker, EventingV1, EventingV1Broker, Source, SourcesV1 } from "./eventing/api";
+import { Broker, EventingV1, EventingV1Broker, EventingV1Trigger, Source, SourcesV1, Trigger } from "./eventing/api";
 import { SourceListFactory, SourceSummaryFactory, TypedSourceListFactory } from "./eventing/source";
 import {
   ClusterDuckType,
@@ -33,6 +33,7 @@ import {
 import { MetadataSummaryFactory } from "./components/metadata";
 import { EditorFactory } from "@project-octant/plugin/components/editor";
 import { BrokerListFactory, BrokerSummaryFactory } from "./eventing/broker";
+import { TriggerListFactory, TriggerSummaryFactory } from "./eventing/trigger";
 
 export function brokerListingContentHandler(params: any): octant.ContentResponse {
   const title = [
@@ -72,6 +73,47 @@ export function brokerDetailContentHandler(params: any): octant.ContentResponse 
   ]
 
   const body = brokerDetail(broker)
+  return h.createContentResponse(title, body)
+}
+
+export function triggerListingContentHandler(params: any): octant.ContentResponse {
+  const title = [
+    new LinkFactory({ value: "Knative", ref: "/knative" }),
+    new LinkFactory({ value: "Eventing", ref: ctx.linker({ apiVersion: EventingV1 }) }),
+    new TextFactory({ value: "Triggers" })
+  ];
+  const body = new ListFactory({
+    factoryMetadata: {
+      title: title.map(f => f.toComponent()),
+    },
+    items: [
+      triggerListing({
+        title: [new TextFactory({ value: "Triggers" }).toComponent()]
+      }).toComponent(),
+    ],
+  });
+  return h.createContentResponse(title, [body]);
+}
+
+export function triggerDetailContentHandler(params: any): octant.ContentResponse {
+  const namespace: string = params.namespace || ctx.namespace
+  const name: string = params.triggerName;
+
+  const trigger: Trigger = ctx.dashboardClient.Get({
+    apiVersion: EventingV1,
+    kind: EventingV1Trigger,
+    name: name,
+    namespace: namespace,
+  })
+
+  const title = [
+    new LinkFactory({ value: "Knative", ref: "/knative" }),
+    new LinkFactory({ value: "Eventing", ref: ctx.linker({ apiVersion: EventingV1 }) }),
+    new LinkFactory({ value: "Triggers", ref: ctx.linker({ apiVersion: EventingV1Trigger }) }),
+    new TextFactory({ value: name })
+  ]
+
+  const body = triggerDetail(trigger)
   return h.createContentResponse(title, body)
 }
 
@@ -201,6 +243,16 @@ function sourceListing(clientID: string, factoryMetadata?: FactoryMetadata, sour
   return new SourceListFactory({ sources, factoryMetadata })
 }
 
+function triggerListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
+  const triggers: Trigger[] = ctx.dashboardClient.List({
+    apiVersion: EventingV1,
+    kind: EventingV1Trigger,
+    namespace: ctx.namespace,
+  })
+  triggers.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
+
+  return new TriggerListFactory({ triggers, factoryMetadata })
+}
 //TODO: Finish implementing the usage of `additional printer columns` passing in sources
 function typedSourceListing(sourceType: string, factoryMetadata?: FactoryMetadata): ComponentFactory<any> {
   const ducks: ClusterDuckType = ctx.dashboardClient.Get({
@@ -233,9 +285,20 @@ function typedSourceListing(sourceType: string, factoryMetadata?: FactoryMetadat
 }
 
 function brokerDetail(broker: Broker): ComponentFactory<any>[] {
+  // find triggers
+
+  const triggers: Trigger[] = ctx.dashboardClient.List({
+    apiVersion: EventingV1,
+    kind: EventingV1Trigger,
+    namespace: ctx.namespace,
+    labelSelector: {matchLabels: {"eventing.knative.dev/broker": broker.metadata.name || '_' }}
+  })
+  triggers.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
+
   return [
     new BrokerSummaryFactory({
       broker,
+      triggers,
       factoryMetadata: {
         title: [new TextFactory({ value: "Summary" }).toComponent()],
         accessor: "summary",
@@ -292,6 +355,43 @@ function sourceDetail(source: Source): ComponentFactory<any>[] {
         kind: source.kind,
         namespace: source.metadata.namespace || '',
         name: source.metadata.name || '',
+      },
+      factoryMetadata: {
+        title: [new TextFactory({ value: "YAML" }).toComponent()],
+        accessor: "yaml",
+      },
+    })
+
+  ]
+}
+
+function triggerDetail(trigger: Trigger): ComponentFactory<any>[] {
+  // find triggers
+
+  return [
+    new TriggerSummaryFactory({
+      trigger,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Summary" }).toComponent()],
+        accessor: "summary",
+      },
+    }),
+    new MetadataSummaryFactory({
+      object: trigger,
+      factoryMetadata: {
+        title: [new TextFactory({ value: "Metadata" }).toComponent()],
+        accessor: "metadata",
+      }
+    }),
+    new EditorFactory({
+      value: "---\n" + YAML.stringify(JSON.parse(JSON.stringify(trigger)), { sortMapEntries: true }),
+      language: 'yaml',
+      readOnly: false,
+      metadata: {
+        apiVersion: trigger.apiVersion,
+        kind: trigger.kind,
+        namespace: trigger.metadata.namespace || '',
+        name: trigger.metadata.name || '',
       },
       factoryMetadata: {
         title: [new TextFactory({ value: "YAML" }).toComponent()],

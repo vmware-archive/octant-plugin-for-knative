@@ -11,6 +11,7 @@ import ctx from "../context";
 import { Component } from "@project-octant/plugin/components/component";
 import { ComponentFactory, FactoryMetadata } from "@project-octant/plugin/components/component-factory";
 import { TextFactory } from "@project-octant/plugin/components/text";
+import { LinkFactory } from "@project-octant/plugin/components/link";
 
 export interface KReference {
   kind: string;
@@ -47,6 +48,7 @@ export class KReferenceTableFactory implements ComponentFactory<any> {
       columns.value,
     ];
 
+    ref.namespace = ref.namespace || ctx.namespace
     const kind = new h.TableRow(
       {
         [columns.key]: new TextFactory({ value: "kind" }),
@@ -56,13 +58,14 @@ export class KReferenceTableFactory implements ComponentFactory<any> {
     const namespace = new h.TableRow(
       {
         [columns.key]: new TextFactory({ value: "namespace" }),
-        [columns.value]: new TextFactory({ value: ref.namespace ? ref.namespace : ctx.namespace })
+        [columns.value]: new TextFactory({ value: ref.namespace })
       }
     )
+
     const name = new h.TableRow(
       {
         [columns.key]: new TextFactory({ value: "name" }),
-        [columns.value]: new TextFactory({ value: ref.name })
+        [columns.value]: new LinkFactory({ value: ref.name, ref: ctx.linker(ref) })
       }
     )
     const apiVersion = new h.TableRow(
@@ -71,9 +74,14 @@ export class KReferenceTableFactory implements ComponentFactory<any> {
         [columns.value]: new TextFactory({ value: ref.apiVersion })
       }
     )
+    const resource = new h.TableRow(
+      {
+        [columns.key]: new TextFactory({ value: "resource" }),
+      }
+    )
+    table.push(name);
     table.push(kind);
     table.push(namespace);
-    table.push(name);
     table.push(apiVersion);
 
     return table.getFactory().toComponent();
