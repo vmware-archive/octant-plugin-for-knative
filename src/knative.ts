@@ -43,6 +43,8 @@ import {
   sourceDetailContentHandler,
   sourcesListingContentHandler,
   sourceTypeListingContentHandler,
+  triggerDetailContentHandler,
+  triggerListingContentHandler,
 } from "./eventing";
 
 import ctx from "./context";
@@ -95,6 +97,8 @@ export default class KnativePlugin implements octant.Plugin {
     this.router.add([{ path: "/eventing/sources/:sourceType/:sourceName", handler: sourceDetailContentHandler }]);
     this.router.add([{ path: "/eventing/brokers", handler: brokerListingContentHandler }]);
     this.router.add([{ path: "/eventing/brokers/:brokerName", handler: brokerDetailContentHandler }]);
+    this.router.add([{ path: "/eventing/triggers", handler: triggerListingContentHandler }]);
+    this.router.add([{ path: "/eventing/triggers/:triggerName", handler: triggerDetailContentHandler }]);
     this.router.add([{ path: "/serving", handler: servingOverviewContentHandler }]);
     this.router.add([{ path: "/serving/services", handler: serviceListingContentHandler }]);
     this.router.add([{ path: "/serving/services/:serviceName", handler: serviceDetailContentHandler }]);
@@ -181,6 +185,7 @@ export default class KnativePlugin implements octant.Plugin {
     nav.add("Routes", "serving/routes");
     nav.add("Sources", "eventing/sources");
     nav.add("Brokers", "eventing/brokers");
+    nav.add("Triggers", "eventing/triggers");
     return nav;
   }
 

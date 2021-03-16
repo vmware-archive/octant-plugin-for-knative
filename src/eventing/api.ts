@@ -10,6 +10,7 @@ import { KReference } from "../components/kreference";
 
 export const EventingV1 = "eventing.knative.dev/v1"
 export const EventingV1Broker = "Broker"
+export const EventingV1Trigger = "Trigger"
 export const SourcesV1 = "sources.knative.dev/v1"
 
 export interface Source {
@@ -54,5 +55,29 @@ export interface Broker {
     observedGeneration: number;
     annotations?: { [key: string]: string };
     address: { url: string };
+  };
+}
+
+// duckV1 Destination should be a interface.
+export interface Trigger {
+  apiVersion: string;
+  kind: string;
+  metadata: V1ObjectMeta;
+  spec: {
+    broker: string;
+    filter?: {
+      attributes?: {[key: string]: string};
+    };
+    subscriber: {
+      ref?: KReference;
+      uri?: string;
+    }
+  }
+  status: {
+    conditions?: Condition[];
+    observedGeneration: number;
+    annotations?: { [key: string]: string };
+    //confused on this what an apis.URL is, probably imported? copying broker behavior for now
+    subscriberURI: { url: string }; 
   };
 }

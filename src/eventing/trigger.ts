@@ -20,52 +20,47 @@ import { ConditionListFactory, ConditionSummaryFactory } from "../components/con
 import { deleteGridAction } from "../components/grid-actions";
 import { KReferenceTableFactory } from "../components/kreference";
 import ctx from "../context";
-import { Broker, EventingV1, EventingV1Broker, Trigger } from "./api";
-import { TriggerListFactory } from "./trigger";
+import { EventingV1, EventingV1Broker, EventingV1Trigger, Trigger } from "./api";
 
-interface BrokerListParameters {
-  brokers: Broker[];
+interface TriggerListParameters {
+  triggers: Trigger[];
   factoryMetadata?: FactoryMetadata;
 }
 
-export class BrokerListFactory implements ComponentFactory<any> {
-  protected readonly brokers: Broker[];
+export class TriggerListFactory implements ComponentFactory<any> {
+  protected readonly triggers: Trigger[];
   protected readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ brokers, factoryMetadata }: BrokerListParameters) {
-    this.brokers = brokers;
+  constructor({ triggers, factoryMetadata }: TriggerListParameters) {
+    this.triggers = triggers;
     this.factoryMetadata = factoryMetadata;
   }
 
   toComponent(): Component<TableConfig> {
     const columns = {
       name: 'Name',
-      url: 'URL',
-      config: 'Config',
-      configType: 'Config Type',
+      broker: 'Broker',
+      subscriber: 'Subscriber',
+      subscriberType: 'Subscriber Type',
       age: 'Age',
     };
     const table = new h.TableFactoryBuilder([], [], void 0, void 0, void 0, void 0, this.factoryMetadata);
     table.columns = [
       columns.name,
-      columns.url,
-      columns.config,
-      columns.configType,
+      columns.broker,
+      columns.subscriber,
+      columns.subscriberType,
       columns.age,
     ];
     table.loading = false;
-    table.emptyContent = "There are no brokers!";
+    table.emptyContent = "There are no triggers!";
     // TODO add filters
     // table.filters = ...;
 
     const notFound = new TextFactory({ value: '*not found*', options: { isMarkdown: true } });
-    for (const broker of this.brokers) {
-      const { kind, metadata, spec, status } = broker;
-      const { config } = spec
-      const { address } = status
-      if (config) {
-        config.namespace = config.namespace || ctx.namespace
-      }
+    for (const trigger of this.triggers) {
+      const { metadata, spec, status } = trigger;
+      const { broker, subscriber } = spec
 
       const ready = new ConditionSummaryFactory({ conditions: status.conditions, type: "Ready" });
 
@@ -75,7 +70,7 @@ export class BrokerListFactory implements ComponentFactory<any> {
             value: metadata.name || '',
             ref: ctx.linker({
               apiVersion: EventingV1,
-              kind: EventingV1Broker,
+              kind: EventingV1Trigger,
               name: metadata.name,
               namespace: metadata.namespace
             }),
@@ -85,19 +80,26 @@ export class BrokerListFactory implements ComponentFactory<any> {
               statusDetail: ready.toComponent(),
             },
           }),
-          // TODO: source -> sink link should work for a uri type sink
-          [columns.url]: address.url
-            ? new LinkFactory({ value: address.url, ref: address.url })
-            : notFound,
-          [columns.config]: config
+          [columns.broker]: broker
             ? new LinkFactory({
-              value: config.name,
-              ref: ctx.linker(config)
+              value: broker,
+              ref: ctx.linker({
+                name: broker,
+                apiVersion: EventingV1,
+                kind: EventingV1Broker,
+                namespace: ctx.namespace,
+              })
             })
             : notFound,
-          [columns.configType]: config
+          [columns.subscriber]: subscriber.ref
+            ? new LinkFactory({
+              value: subscriber.ref.name,
+              ref: ctx.linker(subscriber.ref)
+            })
+            : subscriber.uri ? new TextFactory({ value: subscriber.uri }) : notFound,
+          [columns.subscriberType]: subscriber.ref
             ? new TextFactory({
-              value: `${config.kind.toLowerCase()}s.${config.apiVersion.split("/")[0]}`,
+              value: `${subscriber.ref.kind.toLowerCase()}s.${subscriber.ref.apiVersion.split("/")[0]}`,
             })
             : notFound,
           [columns.age]: new TimestampFactory({ timestamp: Math.floor(new Date(metadata.creationTimestamp || 0).getTime() / 1000) })
@@ -106,7 +108,7 @@ export class BrokerListFactory implements ComponentFactory<any> {
           isDeleting: !!metadata?.deletionTimestamp,
           gridActions: new GridActionsFactory({
             actions: [
-              deleteGridAction(broker),
+              deleteGridAction(trigger),
             ]
           }),
         }
@@ -118,20 +120,17 @@ export class BrokerListFactory implements ComponentFactory<any> {
   }
 }
 
-interface BrokerDetailParameters {
-  broker: Broker;
-  triggers: Trigger[];
+interface TriggerDetailParameters {
+  trigger: Trigger;
   factoryMetadata?: FactoryMetadata;
 }
-export class BrokerSummaryFactory implements ComponentFactory<any> {
-  private readonly broker: Broker;
-  private readonly triggers: Trigger[];
+export class TriggerSummaryFactory implements ComponentFactory<any> {
+  private readonly trigger: Trigger;
   private readonly factoryMetadata?: FactoryMetadata;
 
-  constructor({ broker, factoryMetadata, triggers }: BrokerDetailParameters) {
-    this.broker = broker;
+  constructor({ trigger, factoryMetadata }: TriggerDetailParameters) {
+    this.trigger = trigger;
     this.factoryMetadata = factoryMetadata;
-    this.triggers = triggers;
   }
 
   toComponent(): Component<any> {
@@ -141,8 +140,6 @@ export class BrokerSummaryFactory implements ComponentFactory<any> {
           [
             { view: this.toSpecComponent(), width: h.Width.Full },
             { view: this.toStatusComponent(), width: h.Width.Full },
-            // TODO: this should have a trigger list component
-            { view: this.toTriggerListComponent(), width: h.Width.Full },
           ],
         ],
       },
@@ -152,56 +149,49 @@ export class BrokerSummaryFactory implements ComponentFactory<any> {
   }
 
   toSpecComponent(): Component<any> {
-    const { metadata, spec } = this.broker;
+    const { spec } = this.trigger;
+    const { broker } = spec
 
     const sections: { header: string, content: Component<any> }[] = [];
 
-      sections.push({
-        header: "Config",
-        content: spec.config
-          ? new KReferenceTableFactory({ kreference: spec.config }).toComponent()
-          : new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent(),
-      })
+    sections.push({
+      header: "Broker",
+      content: broker
+        ? new LinkFactory({
+          value: broker,
+          ref: ctx.linker({
+            name: broker,
+            apiVersion: EventingV1,
+            kind: EventingV1Broker,
+            namespace: ctx.namespace,
+          })
+        }).toComponent()
+        : new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent(),
+    })
 
-    if (spec.delivery?.deadLetterSink) {
-      if (spec.delivery.deadLetterSink.ref) {
+    if (spec.filter?.attributes) {
+      sections.push({
+        header: "Filter Attributes",
+        // TODO: Maybe attributes should link to event sources?
+        content: new AnnotationsFactory({
+          annotations: spec.filter.attributes || new TextFactory({ value: "No Filter Attributes" }).toComponent(),
+        }).toComponent(),
+      })
+    }
+
+    if (spec.subscriber) {
+      if (spec.subscriber.ref) {
         sections.push({
-          header: "Dead Letter Sink",
-          content: new KReferenceTableFactory({ kreference: spec.delivery.deadLetterSink.ref }).toComponent(),
+          header: "Subscriber",
+          content: new KReferenceTableFactory({ kreference: spec.subscriber.ref }).toComponent(),
         })
       }
-      if (spec.delivery.deadLetterSink.uri) {
+      if (spec.subscriber.uri) {
         sections.push({
-          header: "Dead Letter Sink",
-          content: new TextFactory({ value: spec.delivery.deadLetterSink.uri }).toComponent(),
+          header: "Subscriber",
+          content: new TextFactory({ value: spec.subscriber.uri }).toComponent(),
         })
       }
-    } else {
-      sections.push({
-        header: "Dead Letter Sink",
-        content: new TextFactory({ value: '*empty*', options: { isMarkdown: true } }).toComponent()
-      })
-    }
-
-    if (spec.delivery?.retry) {
-      sections.push({
-        header: "Retry",
-        content: new TextFactory({ value: spec.delivery.retry.toString() }).toComponent(),
-      })
-    }
-
-    if (spec.delivery?.backoffPolicy) {
-      sections.push({
-        header: "Backoff Policy",
-        content: new TextFactory({ value: spec.delivery.backoffPolicy }).toComponent(),
-      })
-    }
-
-    if (spec.delivery?.backoffDelay) {
-      sections.push({
-        header: "Backoff Delay",
-        content: new TextFactory({ value: spec.delivery.backoffDelay }).toComponent(),
-      })
     }
 
     const summary = new SummaryFactory({
@@ -214,18 +204,11 @@ export class BrokerSummaryFactory implements ComponentFactory<any> {
   }
 
   toStatusComponent(): Component<any> {
-    const { metadata, status } = this.broker;
+    const { metadata, status } = this.trigger;
 
     let unknown = new TextFactory({ value: '*unknown*', options: { isMarkdown: true } }).toComponent();
 
     const sections = [];
-
-    sections.push({
-      header: "Address",
-      content: status.address?.url
-        ? new LinkFactory({ value: status.address?.url, ref: status.address?.url }).toComponent()
-        : unknown
-    });
 
     if (status.annotations) {
       sections.push({
@@ -247,18 +230,9 @@ export class BrokerSummaryFactory implements ComponentFactory<any> {
     return summary.toComponent();
   }
 
-  toTriggerListComponent(): Component<any> {
-    return new TriggerListFactory({
-      triggers: this.triggers,
-      factoryMetadata: {
-        title: [new TextFactory({ value: "Triggers" }).toComponent()],
-      },
-    }).toComponent();
-  }
-
   toConditionsListComponent(): Component<any> {
     return new ConditionListFactory({
-      conditions: this.broker.status.conditions || [],
+      conditions: this.trigger.status.conditions || [],
       factoryMetadata: {
         title: [new TextFactory({ value: "Conditions" }).toComponent()],
       },
