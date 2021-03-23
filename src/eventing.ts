@@ -35,6 +35,30 @@ import { EditorFactory } from "@project-octant/plugin/components/editor";
 import { BrokerListFactory, BrokerSummaryFactory } from "./eventing/broker";
 import { TriggerListFactory, TriggerSummaryFactory } from "./eventing/trigger";
 
+export function eventingOverviewContentHandler(params: any): octant.ContentResponse {
+  const title = [
+    new LinkFactory({ value: "Knative", ref: "/knative" }),
+    new TextFactory({ value: "Eventing" })
+  ];
+  const body = new ListFactory({
+    factoryMetadata: {
+      title: title.map(f => f.toComponent()),
+    },
+    items: [
+      sourceListing({
+        title: [new TextFactory({ value: "Sources" }).toComponent()],
+      }).toComponent(),
+      brokerListing({
+        title: [new TextFactory({ value: "Brokers" }).toComponent()],
+      }).toComponent(),
+      triggerListing({
+        title: [new TextFactory({ value: "Triggers" }).toComponent()],
+      }).toComponent(),
+    ],
+  });
+  return h.createContentResponse(title, [body]);
+}
+
 export function brokerListingContentHandler(params: any): octant.ContentResponse {
   const title = [
     new LinkFactory({ value: "Knative", ref: "/knative" }),
@@ -132,7 +156,7 @@ export function sourcesListingContentHandler(params: any): octant.ContentRespons
       sourceTypeListing({
         title: [new TextFactory({ value: "Source Types" }).toComponent()]
       }).toComponent(),
-      sourceListing(params.ClientID, {
+      sourceListing({
         title: [new TextFactory({ value: "Sources" }).toComponent()]
       }).toComponent(),
     ],
@@ -154,7 +178,7 @@ export function sourceTypeListingContentHandler(params: any): octant.ContentResp
       title: title.map(f => f.toComponent()),
     },
     items: [
-      sourceListing(params.ClientID, {
+      sourceListing({
         title: [new TextFactory({ value: "Sources" }).toComponent()]
       }, name).toComponent(),
     ],
@@ -211,7 +235,7 @@ function brokerListing(factoryMetadata?: FactoryMetadata): ComponentFactory<any>
 }
 
 // TODO: Simplify logic/ extract functions/methods
-function sourceListing(clientID: string, factoryMetadata?: FactoryMetadata, sourceType?: string): ComponentFactory<any> {
+function sourceListing(factoryMetadata?: FactoryMetadata, sourceType?: string): ComponentFactory<any> {
   const sourceDucks: ClusterDuckType = ctx.dashboardClient.Get({
     apiVersion: DiscoveryV1Alpha,
     kind: DiscoveryV1AlphaClusterDuckType,
@@ -291,7 +315,7 @@ function brokerDetail(broker: Broker): ComponentFactory<any>[] {
     apiVersion: EventingV1,
     kind: EventingV1Trigger,
     namespace: ctx.namespace,
-    labelSelector: {matchLabels: {"eventing.knative.dev/broker": broker.metadata.name || '_' }}
+    labelSelector: { matchLabels: { "eventing.knative.dev/broker": broker.metadata.name || '_' } }
   })
   triggers.sort((a, b) => (a.metadata.name || '').localeCompare(b.metadata.name || ''));
 

@@ -40,6 +40,7 @@ import {
 import {
   brokerDetailContentHandler,
   brokerListingContentHandler,
+  eventingOverviewContentHandler,
   sourceDetailContentHandler,
   sourcesListingContentHandler,
   sourceTypeListingContentHandler,
@@ -92,6 +93,7 @@ export default class KnativePlugin implements octant.Plugin {
         return h.createContentResponse([], []);
       }
     }]);
+    this.router.add([{ path: "/eventing", handler: eventingOverviewContentHandler }]);
     this.router.add([{ path: "/eventing/sources", handler: sourcesListingContentHandler }]);
     this.router.add([{ path: "/eventing/sources/:sourceType", handler: sourceTypeListingContentHandler }]);
     this.router.add([{ path: "/eventing/sources/:sourceType/:sourceName", handler: sourceDetailContentHandler }]);
@@ -153,13 +155,6 @@ export default class KnativePlugin implements octant.Plugin {
       return h.createContentResponse([], []);
     }
 
-    if (contentPath == "/eventing") {
-      // TODO return overiview handler when it exists
-
-      // redirect to sources in the interim
-      ctx.dashboardClient.SendEvent(clientID, "event.octant.dev/contentPath", { contentPath: "/knative/eventing/sources" })
-    }
-
     const results: any = this.router.recognize(contentPath);
     if (!results) {
       // not found
@@ -180,12 +175,17 @@ export default class KnativePlugin implements octant.Plugin {
   navigationHandler(): octant.Navigation {
     // TODO pick better icons
     let nav = new h.Navigation("Knative", "knative", "cloud");
-    nav.add("Services", "serving/services");
-    nav.add("Configurations", "serving/configurations");
-    nav.add("Routes", "serving/routes");
-    nav.add("Sources", "eventing/sources");
-    nav.add("Brokers", "eventing/brokers");
-    nav.add("Triggers", "eventing/triggers");
+
+    let serving = new h.Navigation("Serving", "knative/serving", "cloud-scale")
+    serving.add("Services", "services");
+    serving.add("Configurations", "configurations");
+    serving.add("Routes", "routes");
+    let eventing = new h.Navigation("Eventing", "knative/eventing", "cloud-traffic")
+    eventing.add("Sources", "sources");
+    eventing.add("Brokers", "brokers");
+    eventing.add("Triggers", "triggers");
+
+    nav.children.push(serving, eventing)
     return nav;
   }
 
