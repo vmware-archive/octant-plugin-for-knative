@@ -15,6 +15,10 @@ Runtime prerequisites:
 - Knative Discovery API v0.20.0+
   - With knative source cluster duck type installed
 
+### Install
+```
+curl -L https://github.com/vmware-tanzu/octant-plugin-for-knative/releases/download/v0.3.0/knative-0.3.0.js -o ~/.config/octant/plugins/knative.js
+```
 Using the [latest release](https://github.com/vmware-tanzu/octant-plugin-for-knative/releases/latest) is recommended.
 
 ### Build from source
@@ -34,7 +38,7 @@ To build and install the plugin, run:
 npm run plugin:install
 ```
 
-#### Uninstall
+### Uninstall
 
 ```
 rm ~/.config/octant/plugins/knative.js
